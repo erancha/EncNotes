@@ -1,0 +1,33 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: A SAM Template to deploy a Lambda function for connectivity tests.
+
+Globals:
+  Function:
+    Timeout: 3
+    MemorySize: 128
+
+Resources:
+  MyConnectivityTestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: MyConnectivityTestFunction
+      Handler: tester.handler
+      Runtime: nodejs20.x
+      CodeUri: src/
+      Layers:
+        - 'arn:aws:lambda:eu-central-1:575491442067:layer:AwsSdkV3Layer:11'
+        - 'arn:aws:lambda:eu-central-1:575491442067:layer:IoredisLayer:11'
+      Environment:
+        Variables:
+          APP_AWS_REGION: 'eu-central-1'
+          TABLE_NAME: 'ena-notes'
+          KMS_KEY_ALIAS: 'd0efc261-b71d-4f5c-9686-9876cc664243'
+          ELASTICACHE_REDIS_ADDRESS: 'en-elasticache-redis-cluster.hz2zez.0001.euc1.cache.amazonaws.com'
+          QUEUE_URL: 'https://sqs.eu-central-1.amazonaws.com/575491442067/en-f10-private-subnet-messagesToWebsocketsQueue.fifo'
+      VpcConfig:
+        SubnetIds:
+          - 'subnet-00a1db5158e0a7992' # en-PrivateSubnet
+        SecurityGroupIds:
+          - 'sg-0b9d9556b7d46e99a' # en-f10-private-subnet-NotesLambdaSG
+      Role: 'arn:aws:iam::575491442067:role/en-f10-private-subnet-NotesLambdaRole-EtthbsCPHog7'

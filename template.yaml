@@ -1,0 +1,1437 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Encrypted Notes Web App
+
+Globals:
+  Function:
+    Timeout: 5
+    MemorySize: 128
+
+Parameters:
+  StageName:
+    Type: String
+    AllowedValues:
+      - 'dev'
+      - 'prod'
+    Default: 'dev'
+  S3PublicAccess:
+    Description: 'Allow public access to the S3 bucket'
+    Type: String
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'false'
+  OnlyCloudfrontOrigin:
+    Description: 'Allow only CloudFront origin'
+    Type: String
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'false'
+  ApiGatewayCorsAllowedMethods:
+    Type: String
+    Default: "'GET,POST,PUT,DELETE,OPTIONS'"
+    Description: 'Allowed HTTP methods for CORS'
+  ApiGatewayCorsAllowedHeaders:
+    Type: String
+    Default: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+    Description: 'Allowed headers for CORS'
+  CustomDomainName:
+    Description: 'The custom domain name (optional)'
+    Type: String
+    Default: ''
+    AllowedPattern: '^$|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$'
+    ConstraintDescription: 'Must be a valid domain name or empty'
+  CertificateArn:
+    Description: 'Certificate ARN for the custom domain (optional)'
+    Type: String
+    Default: ''
+  # SenderEmail:
+  #   Type: String
+  #   Description: The email address to use for sending verification emails
+  GoogleClientId:
+    Type: String
+    Description: 'The Google Client ID'
+  GoogleClientSecret:
+    Type: String
+    Description: 'The Google Client Secret'
+  ExistingElasticacheRedisClusterAddress:
+    Description: 'Address of an existing Redis cluster (leave empty to create a new one)'
+    Type: String
+    Default: ''
+  EnableUserDataKeysCache:
+    Description: 'Enable a distributed cache (elasticache) for user data keys (DEKs).'
+    Type: String
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Default: 'false'
+  ExistingNotesTableName:
+    Description: 'Name of an existing NotesTable (leave empty to create a new one)'
+    Type: String
+    Default: ''
+  ExistingUsersTableName:
+    Description: 'Name of an existing UsersTable (leave empty to create a new one)'
+    Type: String
+    Default: ''
+  ExistingNotesEncryptionKeyId:
+    Description: 'ID of an existing KMS key for notes encryption (leave empty to create a new one)'
+    Type: String
+    Default: ''
+  ExistingUserPoolId:
+    Description: 'ID of an existing Cognito User Pool (leave empty to create a new one)'
+    Type: String
+    Default: ''
+  ExistingCognitoDomain:
+    Description: 'Existing Cognito Domain (leave empty to create a new one)'
+    Type: String
+    Default: ''
+  ExistingIdentityPoolId:
+    Description: 'ID of an existing Cognito Identity Pool (leave empty to create a new one)'
+    Type: String
+    Default: ''
+  VpcCidrBlock:
+    Type: String
+    Default: 10.0.0.0/16
+    Description: 'The CIDR block for the VPC'
+  ExistingVpcId:
+    Type: String
+    Description: 'ID of an existing VPC (leave empty to create a new one)'
+    Default: ''
+  ExistingPrivateSubnetId:
+    Type: String
+    Description: 'ID of an existing private subnet (leave empty to create a new one)'
+    Default: ''
+  ExistingPublicSubnetId:
+    Type: String
+    Description: 'ID of an existing public subnet (leave empty to create a new one)'
+    Default: ''
+  ExistingRouteTableId:
+    Type: String
+    Description: 'ID of an existing route table (leave empty to create a new one)'
+    Default: ''
+  ExistingNotesLambdaRoleArn:
+    Type: String
+    Description: 'ARN of an existing Notes Lambda function role (leave empty to create a new one)'
+    Default: ''
+  ExistingNotesLambdaSGId:
+    Type: String
+    Description: 'ID of an existing Notes Lambda Security Group (leave empty to create a new one)'
+    Default: ''
+  ExistingWebSocketLambdaRoleArn:
+    Type: String
+    Description: 'ARN of an existing WebSocket Lambda function role (leave empty to create a new one)'
+    Default: ''
+  ExistingWebSocketLambdaSGId:
+    Type: String
+    Description: 'ID of an existing Notes Lambda Security Group (leave empty to create a new one)'
+    Default: ''
+
+Conditions:
+  HasCustomDomainName: !Not [!Equals [!Ref CustomDomainName, '']]
+  HasCertificateArn: !Not [!Equals [!Ref CertificateArn, '']]
+  UseCustomDomain: !And
+    - !Condition HasCustomDomainName
+    - !Condition HasCertificateArn
+  AllowS3PublicAccess: !Equals [!Ref S3PublicAccess, 'true']
+  AllowOnlyCloudfrontOrigin: !Equals [!Ref OnlyCloudfrontOrigin, 'true']
+  CreateElasticacheRedisCluster: !Equals [!Ref ExistingElasticacheRedisClusterAddress, '']
+  EnableUserDataKeysCacheCondition: !Equals [!Ref EnableUserDataKeysCache, 'true']
+  CreateNotesTable: !Equals [!Ref ExistingNotesTableName, '']
+  CreateUsersTable: !Equals [!Ref ExistingUsersTableName, '']
+  CreateNotesEncryptionKey: !Equals [!Ref ExistingNotesEncryptionKeyId, '']
+  CreateUserPool: !Equals [!Ref ExistingUserPoolId, '']
+  CreateCognitoDomain: !Equals [!Ref ExistingCognitoDomain, '']
+  CreateIdentityPool: !Equals [!Ref ExistingIdentityPoolId, '']
+  CreateVpc: !Equals [!Ref ExistingVpcId, '']
+  CreatePrivateSubnet: !Equals [!Ref ExistingPrivateSubnetId, '']
+  CreatePublicSubnet: !Equals [!Ref ExistingPublicSubnetId, '']
+  CreateRouteTable: !Equals [!Ref ExistingRouteTableId, '']
+  CreateNotesLambdaRole: !Equals [!Ref ExistingNotesLambdaRoleArn, '']
+  CreateNotesLambdaSG: !Equals [!Ref ExistingNotesLambdaSGId, '']
+  CreateWebSocketLambdaRole: !Equals [!Ref ExistingWebSocketLambdaRoleArn, '']
+  CreateWebSocketLambdaSG: !Equals [!Ref ExistingWebSocketLambdaSGId, '']
+
+Resources:
+  # ------------------------------------------------------------------------------
+  # Network isolation and security
+  # ------------------------------------------------------------------------------
+  MyVPC:
+    Type: AWS::EC2::VPC
+    Condition: CreateVpc
+    Properties:
+      CidrBlock: !Ref VpcCidrBlock
+      EnableDnsHostnames: true # Added to enable DNS support and hostnames in the VPC.
+      EnableDnsSupport: true # These settings are crucial for the private DNS feature of VPC endpoints to function properly. They allow your Lambda functions to resolve the AWS service endpoints to private IP addresses within your VPC.
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-VPC'
+        - Key: MainRouteTable
+          Value: !Sub '${AWS::StackName}-MainRTB'
+
+  MySG:
+    Type: AWS::EC2::SecurityGroup
+    Condition: CreateVpc
+    Properties:
+      GroupDescription: My custom security group
+      VpcId: !If [CreateVpc, !Ref MyVPC, !Ref ExistingVpcId]
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-SG'
+
+  MyNACL:
+    Type: AWS::EC2::NetworkAcl
+    Condition: CreateVpc
+    Properties:
+      VpcId: !If [CreateVpc, !Ref MyVPC, !Ref ExistingVpcId]
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-NACL'
+
+  MyNACLAssociation:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Condition: CreatePrivateSubnet
+    Properties:
+      SubnetId: !Ref MyPrivateSubnet
+      NetworkAclId: !Ref MyNACL
+
+  MyNACLInboundRule:
+    Type: AWS::EC2::NetworkAclEntry
+    Condition: CreateVpc
+    Properties:
+      NetworkAclId: !Ref MyNACL
+      RuleNumber: 100
+      Protocol: -1
+      RuleAction: allow
+      Egress: false
+      CidrBlock: 0.0.0.0/0 # !GetAtt MyVPC.CidrBlock
+
+  MyNACLOutboundRule:
+    Type: AWS::EC2::NetworkAclEntry
+    Condition: CreateVpc
+    Properties:
+      NetworkAclId: !Ref MyNACL
+      RuleNumber: 100
+      Protocol: -1
+      RuleAction: allow
+      Egress: true
+      CidrBlock: 0.0.0.0/0
+
+  MyPrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Condition: CreatePrivateSubnet
+    Properties:
+      VpcId: !If [CreateVpc, !Ref MyVPC, !Ref ExistingVpcId]
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-PrivateSubnet'
+
+  MyRouteTable:
+    Type: AWS::EC2::RouteTable
+    Condition: CreateRouteTable
+    Properties:
+      VpcId: !If [CreateVpc, !Ref MyVPC, !Ref ExistingVpcId]
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-RTB'
+
+  MySubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: CreateRouteTable
+    Properties:
+      SubnetId: !If [CreatePrivateSubnet, !Ref MyPrivateSubnet, !Ref ExistingPrivateSubnetId]
+      RouteTableId: !Ref MyRouteTable
+
+  # ------------------------------------------------------------------------------
+  # DynamoDB Tables.
+  # ------------------------------------------------------------------------------
+  NotesTable:
+    Type: AWS::DynamoDB::Table
+    Condition: CreateNotesTable
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Sub ${AWS::StackName}-notes
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: updatedAt
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: UserIdUpdatedIndex
+          KeySchema:
+            - AttributeName: userId
+              KeyType: HASH
+            - AttributeName: updatedAt
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Condition: CreateUsersTable
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Sub ${AWS::StackName}-users
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: UserIdIndex
+          KeySchema:
+            - AttributeName: userId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  # VPC Endpoint to DynamoDB TODO: Create thru Cloudfront, with route table mapping (currently created manually in AWS console)
+  # DynamoDBVPCEndpoint:
+  #   Type: AWS::EC2::VPCEndpoint
+  #   Properties:
+  #     VpcEndpointType: Gateway
+  #     VpcId: !Ref MyVPC
+  #     ServiceName: !Sub 'com.amazonaws.${AWS::Region}.dynamodb'
+  #     PolicyDocument:
+  #       Version: '2012-10-17'
+  #       Statement:
+  #         - Effect: Allow
+  #           Principal: '*'
+  #           Action: 'dynamodb:*'
+  #           Resource: '*'
+
+  # ------------------------------------------------------------------------------
+  # KMS.
+  # ------------------------------------------------------------------------------
+  # CMK (Customer Master Key), KMS application level - one for the application.
+  NotesEncryptionKey:
+    Type: AWS::KMS::Key
+    Condition: CreateNotesEncryptionKey
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: KMS key for encrypting and decrypting notes
+      KeyPolicy:
+        Version: '2012-10-17'
+        Id: key-default-1
+        Statement:
+          - Sid: 'AllowRootAccess'
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: kms:*
+            Resource: '*'
+          # - Sid: 'AllowLambdaAccess'
+          #   Effect: Allow
+          #   Principal:
+          #     AWS: !GetAtt NotesLambdaRole.Arn
+          #   Action:
+          #     - kms:Encrypt
+          #     - kms:Decrypt
+          #     - kms:GenerateDataKey
+          #   Resource: !GetAtt NotesEncryptionKey.Arn
+
+  NotesEncryptionKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub 'alias/${AWS::StackName}-notes-encryption-key'
+      TargetKeyId: !If
+        - CreateNotesEncryptionKey
+        - !Ref NotesEncryptionKey
+        - !Ref ExistingNotesEncryptionKeyId
+
+  # VPC Endpoint to KMS
+  KMSVPCEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Condition: CreateVpc
+    Properties:
+      VpcEndpointType: Interface
+      VpcId: !If [CreateVpc, !Ref MyVPC, !Ref ExistingVpcId]
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.kms'
+      SubnetIds:
+        - !If [CreatePrivateSubnet, !Ref MyPrivateSubnet, !Ref ExistingPrivateSubnetId]
+      SecurityGroupIds:
+        - !If [CreateNotesLambdaSG, !Ref NotesLambdaSG, !Ref ExistingNotesLambdaSGId]
+      PrivateDnsEnabled: true
+
+  # ------------------------------------------------------------------------------
+  # ElastiCache Redis Cluster.
+  # ------------------------------------------------------------------------------
+  MyElasticacheRedisCluster:
+    Type: AWS::ElastiCache::CacheCluster
+    Condition: CreateElasticacheRedisCluster
+    Properties:
+      ClusterName: !Sub '${AWS::StackName}-ElastiCache-redis-cluster'
+      Engine: redis
+      CacheNodeType: cache.t3.micro
+      NumCacheNodes: 1
+      CacheSubnetGroupName: !Ref MyElasticacheRedisSubnetGroup
+      VpcSecurityGroupIds:
+        - !Ref MyElasticacheRedisSG
+
+  MyElasticacheRedisSubnetGroup:
+    Type: AWS::ElastiCache::SubnetGroup
+    Condition: CreateElasticacheRedisCluster
+    Properties:
+      Description: Subnet group for Redis cluster
+      SubnetIds:
+        - !If [CreatePrivateSubnet, !Ref MyPrivateSubnet, !Ref ExistingPrivateSubnetId]
+
+  MyElasticacheRedisSG:
+    Type: AWS::EC2::SecurityGroup
+    Condition: CreateElasticacheRedisCluster
+    Properties:
+      GroupDescription: Security group for Redis cluster
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-ElasticacheRedisSG'
+      VpcId: !If [CreateVpc, !Ref MyVPC, !Ref ExistingVpcId]
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 6379
+          ToPort: 6379
+          SourceSecurityGroupId: !If [CreateNotesLambdaSG, !Ref NotesLambdaSG, !Ref ExistingNotesLambdaSGId]
+        - IpProtocol: tcp
+          FromPort: 6379
+          ToPort: 6379
+          SourceSecurityGroupId: !Ref BastionSG
+      # SecurityGroupEgress: [] # TODO: ??
+
+  # Bastion Host for Redis Access
+  # -----------------------------
+  MyPublicSubnet:
+    Type: AWS::EC2::Subnet
+    Condition: CreatePublicSubnet
+    Properties:
+      VpcId: !If [CreateVpc, !Ref MyVPC, !Ref ExistingVpcId]
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-PublicSubnet'
+
+  MyPublicSubnetRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Condition: CreateElasticacheRedisCluster
+    Properties:
+      SubnetId: !Ref MyPublicSubnet
+      RouteTableId: !Ref MyRouteTable
+
+  MyPublicRoute:
+    Type: AWS::EC2::Route
+    Condition: CreateElasticacheRedisCluster
+    Properties:
+      RouteTableId: !Ref MyRouteTable
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: !Ref MyInternetGateway
+
+  MyInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Condition: CreateElasticacheRedisCluster
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-InternetGateway'
+
+  AttachInternetGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Condition: CreateElasticacheRedisCluster
+    Properties:
+      VpcId: !If [CreateVpc, !Ref MyVPC, !Ref ExistingVpcId]
+      InternetGatewayId: !Ref MyInternetGateway
+
+  BastionHost:
+    Type: AWS::EC2::Instance
+    Condition: CreateElasticacheRedisCluster
+    Properties:
+      InstanceType: t2.micro
+      ImageId: ami-0f3a22468a3535271 # Amazon Linux 2 AMI (HVM) - Kernel 5.10, SSD Volume Type ..
+      # to use redis-cli:
+      # (1) sudo yum update -y
+      #     sudo amazon-linux-extras install redis6
+      # (2) redis-cli -h en-elasticache-redis-cluster.hz2zez.0001.euc1.cache.amazonaws.com
+      # (3) keys *
+      #     get "users:APq0hdx0liACFZw="
+      #     smembers "connections:23743842-4061-709b-44f8-4ef9a527509d"
+      #     flushall
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: 'true'
+          DeviceIndex: '0'
+          GroupSet:
+            - !Ref BastionSG
+          SubnetId: !Ref MyPublicSubnet
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName} - Redis Bastion Host'
+
+  BastionSG:
+    Type: AWS::EC2::SecurityGroup
+    Condition: CreateElasticacheRedisCluster
+    Properties:
+      GroupDescription: Security group for Bastion host
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-BastionSG'
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      VpcId: !If [CreateVpc, !Ref MyVPC, !Ref ExistingVpcId]
+
+  EC2InstanceConnectRole:
+    Type: AWS::IAM::Role
+    Condition: CreateElasticacheRedisCluster
+    Properties:
+      RoleName: !Sub ${AWS::StackName}-EC2InstanceConnectRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: EC2InstanceConnectPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ec2-instance-connect:SendSSHPublicKey
+                Resource: '*'
+
+  # ------------------------------------------------------------------------------
+  # s3, cloudfront, api gateway and lambda functions invoked from the api gateway.
+  # ------------------------------------------------------------------------------
+
+  # S3 Bucket for frontend hosting
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${AWS::StackName}-frontend
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: error.html
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders: ['*']
+            AllowedMethods: [GET]
+            AllowedOrigins: ['*']
+            MaxAge: 3000
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: !If [AllowS3PublicAccess, false, true]
+        BlockPublicPolicy: !If [AllowS3PublicAccess, false, true]
+        IgnorePublicAcls: !If [AllowS3PublicAccess, false, true]
+        RestrictPublicBuckets: !If [AllowS3PublicAccess, false, true]
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: ObjectWriter
+
+  # Bucket Policy to allow public read access
+  FrontendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref FrontendBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: PublicReadGetObject
+            Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Sub '${FrontendBucket.Arn}/*'
+
+  #  CloudFront Distribution
+  FrontendDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Origins:
+          - Id: S3Origin
+            DomainName: !Select [1, !Split ['//', !GetAtt FrontendBucket.WebsiteURL]]
+            CustomOriginConfig:
+              HTTPPort: 80
+              HTTPSPort: 443
+              OriginProtocolPolicy: http-only
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: ['GET', 'HEAD', 'OPTIONS']
+          CachedMethods: ['GET', 'HEAD']
+          ForwardedValues:
+            QueryString: false
+            Headers:
+              - Origin
+          MinTTL: 0
+          DefaultTTL: 86400
+          MaxTTL: 31536000
+        ViewerCertificate: !If
+          - UseCustomDomain # Use custom SSL certificate if UseCustomDomain is true, otherwise use the default CloudFront certificate
+          - AcmCertificateArn: !Ref CertificateArn
+            SslSupportMethod: sni-only
+          - CloudFrontDefaultCertificate: true
+        PriceClass: PriceClass_100
+        Enabled: true
+        Aliases: !If
+          - UseCustomDomain # Condition to check if custom domain should be used
+          - - !Ref CustomDomainName # If true, include the custom domain name
+          - !Ref AWS::NoValue # If false, do not include any value
+
+  # ------------------------------------------------------------------------------
+  # API gateway.
+  # ------------------------------------------------------------------------------
+
+  # CORS in AWS::Serverless::Api
+  # For REST APIs using AWS::Serverless::Api, AWS SAM simplifies CORS configuration.
+  # The properties you set under the Cors section automatically add the necessary headers to the HTTP responses for OPTIONS requests (preflight requests) along with the main REST request responses.
+
+  # AllowOrigin: This specifies which origins are allowed to access the API. Using "'*'" allows any origin.
+  # AllowMethods: Lists the HTTP methods allowed (e.g., GET, POST).
+  # AllowHeaders: Specifies which headers can be sent in requests to the API.
+  # GatewayResponses: You can customize the responses for common HTTP errors (4xx and 5xx) to ensure that CORS headers are
+
+  # API Gateway
+  RESTApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub '${AWS::StackName}-RestAPI'
+      StageName: !Ref StageName
+      Cors:
+        AllowMethods: !Ref ApiGatewayCorsAllowedMethods
+        AllowHeaders: !Ref ApiGatewayCorsAllowedHeaders
+        AllowOrigin: "'*'"
+      Auth:
+        DefaultAuthorizer: CognitoAuthorizer
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !If
+              - CreateUserPool
+              - !GetAtt UserPool.Arn
+              - !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${ExistingUserPoolId}'
+        AddDefaultAuthorizerToCorsPreflight: false
+      GatewayResponses:
+        DEFAULT_4XX:
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Methods: !Ref ApiGatewayCorsAllowedMethods
+              Access-Control-Allow-Headers: !Ref ApiGatewayCorsAllowedHeaders
+              Access-Control-Allow-Origin: "'*'"
+        DEFAULT_5XX:
+          ResponseParameters:
+            Headers:
+              Access-Control-Allow-Methods: !Ref ApiGatewayCorsAllowedMethods
+              Access-Control-Allow-Headers: !Ref ApiGatewayCorsAllowedHeaders
+              Access-Control-Allow-Origin: "'*'"
+    # CloudWatchLogsRoleArn: !GetAtt ApiGatewayCloudWatchLogsRole.Arn
+
+  # API Deployment
+  ApiGatewayDeployment:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId: !Ref RESTApi
+
+  # ------------------------------------------------------------------------------
+  # Cognito.
+  # ------------------------------------------------------------------------------
+  # Cognito User Pool
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Condition: CreateUserPool
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      UserPoolName: !Sub '${AWS::StackName}-UserPool'
+      AliasAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Mutable: true
+        - Name: given_name
+          AttributeDataType: String
+          Mutable: true
+        - Name: family_name
+          AttributeDataType: String
+          Mutable: true
+        - Name: name
+          AttributeDataType: String
+          Mutable: true
+
+  # Google Provider
+  UserPoolIdentityProviderGoogle:
+    Type: AWS::Cognito::UserPoolIdentityProvider
+    Condition: CreateUserPool
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      ProviderName: Google
+      ProviderType: Google
+      UserPoolId: !If [CreateUserPool, !Ref UserPool, !Ref ExistingUserPoolId]
+      ProviderDetails:
+        client_id: !Ref GoogleClientId
+        client_secret: !Ref GoogleClientSecret
+        authorize_scopes: 'openid email profile' # https://www.googleapis.com/auth/userinfo.profile
+      AttributeMapping:
+        email: email
+        given_name: given_name
+        family_name: family_name
+        name: name
+
+  # Cognito Identity Pool
+  IdentityPool:
+    Type: AWS::Cognito::IdentityPool
+    Condition: CreateIdentityPool
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      IdentityPoolName: !Sub '${AWS::StackName}-IdentityPool'
+      AllowUnauthenticatedIdentities: true
+
+  # Cognito User Pool Client
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !If [CreateUserPool, !Ref UserPool, !Ref ExistingUserPoolId]
+      ClientName: !Sub '${AWS::StackName}-UserPoolClient'
+      GenerateSecret: false
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthScopes:
+        - phone
+        - email
+        - openid
+        - profile
+      AllowedOAuthFlowsUserPoolClient: true
+      CallbackURLs:
+        - !If # CloudFront URL (suffix /callback ?)
+          - UseCustomDomain
+          - !Sub 'https://${CustomDomainName}'
+          - !Sub 'https://${FrontendDistribution.DomainName}'
+        - 'http://localhost:3000'
+      LogoutURLs:
+        - !If # CloudFront URL (suffix /logout ?)
+          - UseCustomDomain
+          - !Sub 'https://${CustomDomainName}'
+          - !Sub 'https://${FrontendDistribution.DomainName}'
+        - 'http://localhost:3000'
+      SupportedIdentityProviders:
+        - Google
+    # DependsOn: UserPoolIdentityProviderGoogle
+
+  # Cognito User Pool Domain
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Condition: CreateCognitoDomain
+    DeletionPolicy: Retain
+    Properties:
+      Domain: !Sub '${AWS::StackName}-${AWS::AccountId}'
+      UserPoolId: !If [CreateUserPool, !Ref UserPool, !Ref ExistingUserPoolId]
+
+  # ------------------------------------------------------------------------------
+  # Lambda layers.
+  # ------------------------------------------------------------------------------
+  CorsHeadersLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      ContentUri: backend/layers/corsHeaders/
+      CompatibleRuntimes:
+        - nodejs20.x
+
+  jsonwebtokenLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      ContentUri: backend/layers/jsonwebtoken-layer.zip
+      CompatibleRuntimes:
+        - nodejs20.x
+
+  AwsSdkV3Layer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Description: AWS SDK v3 Layer
+      Content: backend/layers/awssdkv3-layer.zip
+      CompatibleRuntimes:
+        - nodejs20.x
+
+  IoredisLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Description: ioredis Layer
+      Content: backend/layers/ioredis-layer.zip
+      CompatibleRuntimes:
+        - nodejs20.x
+
+  NotesEncryptionLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      ContentUri: backend/notes/layers/encryption
+      CompatibleRuntimes:
+        - nodejs20.x
+      Description: Layer for encryption and decryption using KMS DEKs, saving the encrypted DEKs in DynamoDB, and optionally caching plaintext DEKs in Redis.
+
+  # ------------------------------------------------------------------------------
+  # Lambda functions for notes handling
+  # ------------------------------------------------------------------------------
+  ListNotesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/notes/list/
+      Handler: listNotes.handler
+      Runtime: nodejs20.x
+      Layers:
+        - !Ref CorsHeadersLayer
+        - !Ref NotesEncryptionLayer
+        - !Ref IoredisLayer
+      Environment:
+        Variables:
+          NOTES_TABLE_NAME: !If [CreateNotesTable, !Ref NotesTable, !Ref ExistingNotesTableName]
+          ALLOWED_ORIGIN: !If
+            - AllowOnlyCloudfrontOrigin
+            - !Sub 'https://${FrontendDistribution.DomainName}'
+            - "'*'"
+          KMS_KEY_ALIAS: !Ref NotesEncryptionKeyAlias
+          APP_AWS_REGION: !Ref 'AWS::Region'
+          USERS_TABLE_NAME: !If [CreateUsersTable, !Ref UsersTable, !Ref ExistingUsersTableName]
+          ELASTICACHE_REDIS_ADDRESS: !If
+            - EnableUserDataKeysCacheCondition
+            - !If
+              - CreateElasticacheRedisCluster
+              - !GetAtt MyElasticacheRedisCluster.RedisEndpoint.Address
+              - !Ref ExistingElasticacheRedisClusterAddress
+            - ''
+      Events:
+        ListNotesApi:
+          Type: Api
+          Properties:
+            Path: /list
+            Method: GET
+            RestApiId: !Ref RESTApi
+            Auth:
+              Authorizer: CognitoAuthorizer
+      VpcConfig:
+        SubnetIds:
+          - !If [CreatePrivateSubnet, !Ref MyPrivateSubnet, !Ref ExistingPrivateSubnetId]
+        SecurityGroupIds:
+          - !If [CreateNotesLambdaSG, !Ref NotesLambdaSG, !Ref ExistingNotesLambdaSGId]
+      Role: !If [CreateNotesLambdaRole, !GetAtt NotesLambdaRole.Arn, !Ref ExistingNotesLambdaRoleArn]
+      # ProvisionedConcurrencyConfig:
+      #   ProvisionedConcurrentExecutions: 1 # Hourly Cost: ~$0.25
+      # AutoPublishAlias: live
+
+  AddNoteFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/notes/add/
+      Handler: addNote.handler
+      Runtime: nodejs20.x
+      Layers:
+        - !Ref CorsHeadersLayer
+        - !Ref NotesEncryptionLayer
+        - !Ref IoredisLayer
+        - !Ref AwsSdkV3Layer
+      Environment:
+        Variables:
+          NOTES_TABLE_NAME: !If [CreateNotesTable, !Ref NotesTable, !Ref ExistingNotesTableName]
+          ALLOWED_ORIGIN: !If
+            - AllowOnlyCloudfrontOrigin
+            - !Sub 'https://${FrontendDistribution.DomainName}'
+            - "'*'"
+          KMS_KEY_ALIAS: !Ref NotesEncryptionKeyAlias
+          APP_AWS_REGION: !Ref 'AWS::Region'
+          USERS_TABLE_NAME: !If [CreateUsersTable, !Ref UsersTable, !Ref ExistingUsersTableName]
+          ELASTICACHE_REDIS_ADDRESS: !If
+            - EnableUserDataKeysCacheCondition
+            - !If
+              - CreateElasticacheRedisCluster
+              - !GetAtt MyElasticacheRedisCluster.RedisEndpoint.Address
+              - !Ref ExistingElasticacheRedisClusterAddress
+            - ''
+          QUEUE_URL: !Ref MessagesToWebsocketsQueue
+      Events:
+        AddNoteApi:
+          Type: Api
+          Properties:
+            Path: /add
+            Method: POST
+            RestApiId: !Ref RESTApi
+            Auth:
+              Authorizer: CognitoAuthorizer
+      VpcConfig:
+        SubnetIds:
+          - !If [CreatePrivateSubnet, !Ref MyPrivateSubnet, !Ref ExistingPrivateSubnetId]
+        SecurityGroupIds:
+          - !If [CreateNotesLambdaSG, !Ref NotesLambdaSG, !Ref ExistingNotesLambdaSGId]
+      Role: !If [CreateNotesLambdaRole, !GetAtt NotesLambdaRole.Arn, !Ref ExistingNotesLambdaRoleArn]
+
+  UpdateNoteFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/notes/update/
+      Handler: updateNote.handler
+      Runtime: nodejs20.x
+      Layers:
+        - !Ref CorsHeadersLayer
+        - !Ref NotesEncryptionLayer
+        - !Ref IoredisLayer
+        - !Ref AwsSdkV3Layer
+      Environment:
+        Variables:
+          NOTES_TABLE_NAME: !If [CreateNotesTable, !Ref NotesTable, !Ref ExistingNotesTableName]
+          ALLOWED_ORIGIN: !If
+            - AllowOnlyCloudfrontOrigin
+            - !Sub 'https://${FrontendDistribution.DomainName}'
+            - "'*'"
+          KMS_KEY_ALIAS: !Ref NotesEncryptionKeyAlias
+          APP_AWS_REGION: !Ref 'AWS::Region'
+          USERS_TABLE_NAME: !If [CreateUsersTable, !Ref UsersTable, !Ref ExistingUsersTableName]
+          ELASTICACHE_REDIS_ADDRESS: !If
+            - EnableUserDataKeysCacheCondition
+            - !If
+              - CreateElasticacheRedisCluster
+              - !GetAtt MyElasticacheRedisCluster.RedisEndpoint.Address
+              - !Ref ExistingElasticacheRedisClusterAddress
+            - ''
+          QUEUE_URL: !Ref MessagesToWebsocketsQueue
+      Events:
+        UpdateNoteApi:
+          Type: Api
+          Properties:
+            Path: /update/{id}
+            Method: PUT
+            RestApiId: !Ref RESTApi
+            Auth:
+              Authorizer: CognitoAuthorizer
+      VpcConfig:
+        SubnetIds:
+          - !If [CreatePrivateSubnet, !Ref MyPrivateSubnet, !Ref ExistingPrivateSubnetId]
+        SecurityGroupIds:
+          - !If [CreateNotesLambdaSG, !Ref NotesLambdaSG, !Ref ExistingNotesLambdaSGId]
+      Role: !If [CreateNotesLambdaRole, !GetAtt NotesLambdaRole.Arn, !Ref ExistingNotesLambdaRoleArn]
+
+  DeleteNoteFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/notes/delete/
+      Handler: deleteNote.handler
+      Runtime: nodejs20.x
+      Layers:
+        - !Ref CorsHeadersLayer
+        - !Ref IoredisLayer
+        - !Ref AwsSdkV3Layer
+      Environment:
+        Variables:
+          NOTES_TABLE_NAME: !If [CreateNotesTable, !Ref NotesTable, !Ref ExistingNotesTableName]
+          ALLOWED_ORIGIN: !If
+            - AllowOnlyCloudfrontOrigin
+            - !Sub 'https://${FrontendDistribution.DomainName}'
+            - "'*'"
+          KMS_KEY_ALIAS: !Ref NotesEncryptionKeyAlias
+          APP_AWS_REGION: !Ref 'AWS::Region'
+          USERS_TABLE_NAME: !If [CreateUsersTable, !Ref UsersTable, !Ref ExistingUsersTableName]
+          ELASTICACHE_REDIS_ADDRESS: !If
+            - EnableUserDataKeysCacheCondition
+            - !If
+              - CreateElasticacheRedisCluster
+              - !GetAtt MyElasticacheRedisCluster.RedisEndpoint.Address
+              - !Ref ExistingElasticacheRedisClusterAddress
+            - ''
+          QUEUE_URL: !Ref MessagesToWebsocketsQueue
+      Events:
+        DeleteNoteApi:
+          Type: Api
+          Properties:
+            Path: /delete/{id}
+            Method: DELETE
+            RestApiId: !Ref RESTApi
+            Auth:
+              Authorizer: CognitoAuthorizer
+      VpcConfig:
+        SubnetIds:
+          - !If [CreatePrivateSubnet, !Ref MyPrivateSubnet, !Ref ExistingPrivateSubnetId]
+        SecurityGroupIds:
+          - !If [CreateNotesLambdaSG, !Ref NotesLambdaSG, !Ref ExistingNotesLambdaSGId]
+      Role: !If [CreateNotesLambdaRole, !GetAtt NotesLambdaRole.Arn, !Ref ExistingNotesLambdaRoleArn]
+
+  # Security group and IAM Role for Lambda functions to access DynamoDB, KMS and Redis
+  # ----------------------------------------------------------------------------------
+
+  # A security group controls network access to your Lambda function but is primarily relevant when your Lambda function is deployed in a VPC.
+  # It determines which inbound and outbound network traffic is allowed.
+  # The security group does not define permissions for invoking the Lambda function itself; it only governs network-level access.
+
+  # An IAM role for the Lambda functions grants permissions for the Lambda to access other AWS services (like DynamoDB, CloudWatch, ElastiCache, etc.) as defined in the policies.
+  # It does not grant permissions for other services to invoke the Lambda function.
+
+  NotesLambdaSG:
+    Type: AWS::EC2::SecurityGroup
+    Condition: CreateNotesLambdaSG
+    Properties:
+      GroupDescription: Allow Notes Lambda functions to access required AWS services
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-NotesLambdaSG'
+      VpcId: !If [CreateVpc, !Ref MyVPC, !Ref ExistingVpcId]
+      SecurityGroupIngress:
+        # []
+        - IpProtocol: tcp # TODO: Understand why this is mandatory for the lambda in private subnet to connect to DynamoDB.
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !Ref VpcCidrBlock
+      SecurityGroupEgress:
+        - IpProtocol: -1 # tcp   TODO: Too permissive
+          # FromPort: 6379 # Redis
+          # ToPort: 6379
+          CidrIp: 0.0.0.0/0 # TODO: Adjust as necessary to limit access: !Ref VpcCidrBlock
+
+  NotesLambdaRole:
+    Type: AWS::IAM::Role
+    Condition: CreateNotesLambdaRole
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+      Policies:
+        - PolicyName: DynamoDBAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                Resource:
+                  - !If
+                    - CreateNotesTable
+                    - !GetAtt NotesTable.Arn
+                    - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ExistingNotesTableName}'
+                  - !If
+                    - CreateNotesTable
+                    - !Sub '${NotesTable.Arn}/index/UserIdUpdatedIndex'
+                    - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ExistingNotesTableName}/index/UserIdUpdatedIndex'
+                  - !If
+                    - CreateUsersTable
+                    - !GetAtt UsersTable.Arn
+                    - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ExistingUsersTableName}'
+                  - !If
+                    - CreateUsersTable
+                    - !Sub '${UsersTable.Arn}/index/UserIdIndex'
+                    - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ExistingUsersTableName}/index/UserIdIndex'
+        - PolicyName: KMSAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - kms:Encrypt
+                  - kms:Decrypt
+                  - kms:GenerateDataKey
+                Resource: !If
+                  - CreateNotesEncryptionKey
+                  - !GetAtt NotesEncryptionKey.Arn
+                  - !Sub 'arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${ExistingNotesEncryptionKeyId}'
+        - PolicyName: ElastiCacheAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'elasticache:DescribeCacheClusters'
+                  - 'elasticache:DescribeReplicationGroups'
+                Resource: '*'
+        - PolicyName: SQSSendMessagePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:SendMessage
+                Resource: !GetAtt MessagesToWebsocketsQueue.Arn
+
+  # ------------------------------------------------------------------------------
+  # Lambda functions for websockets handling
+  # ------------------------------------------------------------------------------
+  ConnectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/websocket/connect/
+      Handler: connect.handler
+      Runtime: nodejs20.x
+      Layers:
+        - !Ref CorsHeadersLayer
+        - !Ref jsonwebtokenLayer
+        - !Ref IoredisLayer
+      Environment:
+        Variables:
+          ALLOWED_ORIGIN: !If
+            - AllowOnlyCloudfrontOrigin
+            - !Sub 'https://${FrontendDistribution.DomainName}'
+            - "'*'"
+          ELASTICACHE_REDIS_ADDRESS: !If
+            - EnableUserDataKeysCacheCondition
+            - !If
+              - CreateElasticacheRedisCluster
+              - !GetAtt MyElasticacheRedisCluster.RedisEndpoint.Address
+              - !Ref ExistingElasticacheRedisClusterAddress
+            - ''
+      VpcConfig:
+        SubnetIds:
+          - !If [CreatePrivateSubnet, !Ref MyPrivateSubnet, !Ref ExistingPrivateSubnetId]
+        SecurityGroupIds:
+          - !If [CreateWebSocketLambdaSG, !Ref WebSocketLambdaSG, !Ref ExistingWebSocketLambdaSGId]
+          - !If [CreateNotesLambdaSG, !Ref NotesLambdaSG, !Ref ExistingNotesLambdaSGId]
+      Role: !If [CreateWebSocketLambdaRole, !GetAtt WebSocketLambdaRole.Arn, !Ref ExistingWebSocketLambdaRoleArn]
+
+  DisconnectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/websocket/disconnect/
+      Handler: disconnect.handler
+      Runtime: nodejs20.x
+      Layers:
+        - !Ref IoredisLayer
+      Environment:
+        Variables:
+          ALLOWED_ORIGIN: !If
+            - AllowOnlyCloudfrontOrigin
+            - !Sub 'https://${FrontendDistribution.DomainName}'
+            - "'*'"
+          ELASTICACHE_REDIS_ADDRESS: !If
+            - EnableUserDataKeysCacheCondition
+            - !If
+              - CreateElasticacheRedisCluster
+              - !GetAtt MyElasticacheRedisCluster.RedisEndpoint.Address
+              - !Ref ExistingElasticacheRedisClusterAddress
+            - ''
+      VpcConfig:
+        SubnetIds:
+          - !If [CreatePrivateSubnet, !Ref MyPrivateSubnet, !Ref ExistingPrivateSubnetId]
+        SecurityGroupIds:
+          - !If [CreateWebSocketLambdaSG, !Ref WebSocketLambdaSG, !Ref ExistingWebSocketLambdaSGId]
+          - !If [CreateNotesLambdaSG, !Ref NotesLambdaSG, !Ref ExistingNotesLambdaSGId]
+      Role: !If [CreateWebSocketLambdaRole, !GetAtt WebSocketLambdaRole.Arn, !Ref ExistingWebSocketLambdaRoleArn]
+
+  # Security group and IAM Role for WebSocket Lambda functions:
+  # -----------------------------------------------------------
+  WebSocketLambdaSG:
+    Type: AWS::EC2::SecurityGroup
+    Condition: CreateWebSocketLambdaSG
+    Properties:
+      GroupDescription: Allow WebSocket Lambda functions to access required AWS services
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-WebSocketLambdaSG'
+      VpcId: !If [CreateVpc, !Ref MyVPC, !Ref ExistingVpcId]
+      SecurityGroupIngress: []
+      SecurityGroupEgress: []
+
+  WebSocketLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CloudWatchLogs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource:
+                  - !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*'
+        - PolicyName: ElastiCacheAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'elasticache:Connect'
+                  - 'elasticache:DescribeCacheClusters'
+                Resource: '*'
+        - PolicyName: NetworkInterfaceAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'ec2:CreateNetworkInterface'
+                  - 'ec2:DescribeNetworkInterfaces'
+                  - 'ec2:DeleteNetworkInterface'
+                Resource: '*'
+
+  # CORS in AWS::ApiGatewayV2::Api (WebSocket APIs)
+  # WebSocket APIs (defined with AWS::ApiGatewayV2::Api) do not directly utilize CORS in the same manner as REST APIs. This is because WebSocket communication is fundamentally different from HTTP communication.
+  # Here are some key points regarding WebSocket APIs and CORS:
+  #   CORS Not Applicable: WebSocket connections are initiated through an HTTP handshake (the initial connection is made using an HTTP request).
+  #     However, once the WebSocket connection is established, there's no concept of CORS since data is transmitted over a single long-lived connection.
+  #   Authorization and Security: Instead of CORS, you need to manage authorization through the WebSocket API's route-level authorization settings.
+  #     For instance, your ConnectRoute and DisconnectRoute can have defined AuthorizationType.
+  #   Preflight Requests: WebSocket connections do not typically require preflight OPTIONS requests like REST calls do.
+  #     However, if you are still facing issues establishing WebSocket connections, it could be due to misconfiguration of the WebSocket API or issues not directly related to CORS.
+
+  WebSocketApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub '${AWS::StackName}-WebSocketAPI'
+      ProtocolType: WEBSOCKET
+      RouteSelectionExpression: '$request.body.action'
+
+  ConnectIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref WebSocketApi
+      Description: Connect Integration
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ConnectFunction.Arn}/invocations
+
+  DisconnectIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref WebSocketApi
+      Description: Disconnect Integration
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DisconnectFunction.Arn}/invocations
+
+  ConnectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref WebSocketApi
+      RouteKey: $connect
+      OperationName: ConnectRoute
+      Target: !Join
+        - '/'
+        - - 'integrations'
+          - !Ref ConnectIntegration
+
+  DisconnectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref WebSocketApi
+      RouteKey: $disconnect
+      OperationName: DisconnectRoute
+      Target: !Join
+        - '/'
+        - - 'integrations'
+          - !Ref DisconnectIntegration
+
+  WebSocketDeployment:
+    Type: AWS::ApiGatewayV2::Deployment
+    DependsOn:
+      - ConnectRoute
+      - DisconnectRoute
+    Properties:
+      ApiId: !Ref WebSocketApi
+
+  WebSocketLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/apigateway/${WebSocketApi}/Custom-access-logging/'
+      RetentionInDays: 7
+
+  WebSocketStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref WebSocketApi
+      StageName: !Ref StageName
+      AutoDeploy: false
+      DeploymentId: !Ref WebSocketDeployment
+      DefaultRouteSettings:
+        DetailedMetricsEnabled: true
+        LoggingLevel: ERROR
+      AccessLogSettings:
+        DestinationArn: !GetAtt WebSocketLogGroup.Arn
+        Format: '{ "requestId":"$context.requestId", "ip": "$context.identity.sourceIp", "caller":"$context.identity.caller", "user":"$context.identity.user", "requestTime":"$context.requestTime", "eventType":"$context.eventType", "routeKey":"$context.routeKey", "status":"$context.status", "connectionId":"$context.connectionId" }'
+
+  # AWS::Lambda::Permission resources are specifically required to grant permissions to other AWS services (in this case, API Gateway) to invoke your Lambda functions.
+  # These permissions are necessary because, by default, Lambda functions are not accessible to other AWS services.
+  # You need to explicitly allow API Gateway to invoke your ConnectFunction and DisconnectFunction.
+
+  ConnectPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ConnectFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WebSocketApi}/*/$connect'
+
+  DisconnectPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref DisconnectFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WebSocketApi}/*/$disconnect'
+
+  # ------------------------------------------------------------------------------
+  # SQS
+  # ------------------------------------------------------------------------------
+  MessagesToWebsocketsQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub '${AWS::StackName}-messagesToWebsocketsQueue.fifo'
+      FifoQueue: true
+      ContentBasedDeduplication: true
+
+  SqsVpcEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Condition: CreateVpc
+    Properties:
+      VpcEndpointType: Interface
+      VpcId: !If [CreateVpc, !Ref MyVPC, !Ref ExistingVpcId]
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.sqs
+      SubnetIds:
+        - !If [CreatePrivateSubnet, !Ref MyPrivateSubnet, !Ref ExistingPrivateSubnetId]
+      SecurityGroupIds:
+        - !If [CreateNotesLambdaSG, !Ref NotesLambdaSG, !Ref ExistingNotesLambdaSGId]
+      PrivateDnsEnabled: true
+
+  ExtractMessagesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: extractMessages.handler
+      Runtime: nodejs20.x
+      CodeUri: backend/websocket/extractMessages/
+      Layers:
+        - !Ref AwsSdkV3Layer
+      Environment:
+        Variables:
+          WEBSOCKET_API_URL: !Sub 'wss://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}'
+      Role: !GetAtt ExtractMessagesLambdaExecutionRole.Arn
+      Events: # event source mapping
+        SQSTrigger:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt MessagesToWebsocketsQueue.Arn
+            BatchSize: 10
+            Enabled: true
+
+  ExtractMessagesLambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+      Policies:
+        - PolicyName: SQSReceiveMessagePolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource: !GetAtt MessagesToWebsocketsQueue.Arn
+        - PolicyName: WebSocketManageConnections
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: 'execute-api:ManageConnections'
+                Resource: !Sub 'arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WebSocketApi}/*'
+
+Outputs:
+  S3BucketName:
+    Description: 'Name of the S3 bucket hosting the frontend'
+    Value: !Ref FrontendBucket
+  S3BucketUrl:
+    Description: 'URL of the S3 bucket hosting the frontend'
+    Value: !GetAtt FrontendBucket.WebsiteURL
+  CloudFrontUrl:
+    Description: 'CloudFront distribution URL'
+    Value: !Sub 'https://${FrontendDistribution.DomainName}'
+  CloudFrontDistributionId:
+    Description: 'CloudFront distribution ID'
+    Value: !Ref FrontendDistribution
+
+  RestApiUrl:
+    Description: 'API Gateway REST endpoint URL for Notes API - production stage'
+    Value: !Sub 'https://${RESTApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}'
+  WebSocketApiUrl:
+    Description: 'URL for the WebSocket API Gateway'
+    Value: !Sub 'wss://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}'
+
+  UserPoolId:
+    Description: 'Cognito User Pool ID'
+    Value: !If [CreateUserPool, !Ref UserPool, !Ref ExistingUserPoolId]
+  UserPoolClientId:
+    Description: 'Cognito User Pool Client ID'
+    Value: !Ref UserPoolClient
+  # SenderEmail:
+  #   Description: 'The email address used for sending verification emails'
+  #   Value: !Ref SenderEmail
+  CognitoDomain:
+    Description: 'Cognito User Pool Domain'
+    Value: !If [CreateCognitoDomain, !Sub '${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com', !Ref ExistingCognitoDomain]
+  IdentityPoolId:
+    Description: 'Cognito Identity Pool ID'
+    Value: !If [CreateIdentityPool, !Ref IdentityPool, !Ref ExistingIdentityPoolId]
+    Condition: CreateIdentityPool
+
+  # MyVPCCidrBlock:
+  #   Value: !Ref VpcCidrBlock
+  #   Description: 'The CIDR block range for the VPC, used for network configuration and routing'
+  # DynamoDBVPCEndpointId:
+  #   Description: 'The ID of the VPC gateway endpoint for DynamoDB, used for secure access to DynamoDB within the VPC'
+  #   Value: !GetAtt DynamoDBVPCEndpoint.Id
+  # MyRouteTableId:
+  #   Description: 'The ID of the main route table associated with the VPC, used for controlling network traffic'
+  #   Value: !Ref MyRouteTable
+
+  ElasticacheRedisClusterAddress:
+    Description: 'Address of the Redis cluster'
+    Value: !If
+      - CreateElasticacheRedisCluster
+      - !GetAtt MyElasticacheRedisCluster.RedisEndpoint.Address
+      - !Ref ExistingElasticacheRedisClusterAddress
+
+  # CreateNotesLambdaSG:
+  #   Value: !If
+  #     - CreateNotesLambdaSG
+  #     - 'yes'
+  #     - 'no'
+
+  SQSQueueUrl:
+    Description: 'URL of the created SQS Queue'
+    Value: !Ref MessagesToWebsocketsQueue

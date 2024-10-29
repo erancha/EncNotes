@@ -1,0 +1,15 @@
+frontend/enc-notes/node_modules
+node_modules/
+scripts/.aws-sam/build.toml
+scripts/.aws-sam/build/template.yaml
+scripts/.aws-sam/build/AddNoteFunction/addNote.js
+scripts/.aws-sam/build/ConnectFunction/connect.js
+scripts/.aws-sam/build/DeleteNoteFunction/deleteNote.js
+scripts/.aws-sam/build/DisconnectFunction/disconnect.js
+scripts/.aws-sam/build/ExtractMessagesFunction/extractMessages.js
+scripts/.aws-sam/build/ListNotesFunction/listNotes.js
+scripts/.aws-sam/build/UpdateNoteFunction/updateNote.js
+test-connectivity/.aws-sam/build.toml
+test-connectivity/.aws-sam/build/template.yaml
+test-connectivity/.aws-sam/build/MyConnectivityTestFunction/package.json
+test-connectivity/.aws-sam/build/MyConnectivityTestFunction/tester.js
