@@ -39,7 +39,7 @@ function App() {
     <div className='App'>
       <div className='build-info'>Build {build}</div>
       <div className={`body ${showOverview ? 'with-overview' : 'without-overview'}`}>
-        <h1>Encrypted Notes</h1>
+        <p className='App-header'>EncNotes</p>
         {userDisplayName ? (
           <div>
             <div className='welcome-auth-container'>
@@ -72,7 +72,7 @@ function App() {
         {!userDisplayName && showOverview && (
           <div className='app-overview'>
             <hr />
-            <p className='header1'>Encrypted Notes Web App</p>
+            <p className='header1'>EncNotes Web App</p>
             <ul className='header2'>
               <li>The application enables authenticated users to add, edit, delete, and list encrypted notes.</li>
               <li>Each user is isolated from others through the use of unique encryption keys.</li>

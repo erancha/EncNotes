@@ -1,4 +1,4 @@
-# Encrypted Notes Web App
+# EncNotes Web App
 
 ## 1. Overview
 

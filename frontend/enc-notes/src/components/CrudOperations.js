@@ -7,12 +7,6 @@ import remarkGfm from 'remark-gfm';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-const LoadingSpinner = () => (
-  <div className='flex items-center justify-center w-full h-32'>
-    <Loader2 className='w-8 h-8 animate-spin text-blue-500 spinner' />
-  </div>
-);
-
 const CrudOperations = ({ restApiUrl, webSocketApiUrl, userDisplayName }) => {
   const [notes, setNotes] = useState([]);
   const [newTitle, setNewTitle] = useState('');
@@ -29,7 +23,7 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl, userDisplayName }) => {
   const [searchInTitle, setSearchInTitle] = useState(true);
   const [searchInContent, setSearchInContent] = useState(true);
   const [caseSensitive, setCaseSensitive] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isAccessingServer, setIsAccessingServer] = useState(false);
 
   const timeoutIdRef = useRef(null);
   const socketRef = useRef(null);
@@ -38,11 +32,10 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl, userDisplayName }) => {
     async (searchParams = prepareSearchParams(searchTerm, searchInTitle, searchInContent, caseSensitive)) => {
       if (!restApiUrl || !userDisplayName) return;
 
-      setIsLoading(true);
+      setIsAccessingServer(true);
       try {
         const { tokens } = await fetchAuthSession();
-        let response;
-        response = await axios.get(`${restApiUrl}/list`, {
+        let response = await axios.get(`${restApiUrl}/list`, {
           headers: { Authorization: `Bearer ${tokens.idToken}` },
           params: searchParams,
         });
@@ -61,7 +54,7 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl, userDisplayName }) => {
         console.error('Error fetching notes:', error);
         toast.error('Failed to fetch notes');
       } finally {
-        setIsLoading(false);
+        setIsAccessingServer(false);
       }
     },
     [restApiUrl, userDisplayName, searchTerm, searchInTitle, searchInContent, caseSensitive]
@@ -95,7 +88,6 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl, userDisplayName }) => {
 
           socketRef.current.onerror = (error) => {
             console.error('WebSocket error:', error);
-            toast.error('WebSocket connection error');
             isConnectingRef.current = true;
             setTimeout(() => {
               isConnectingRef.current = false;
@@ -113,7 +105,6 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl, userDisplayName }) => {
         } catch (err) {
           console.error('Error creating WebSocket:', err);
           socketRef.current = null;
-          toast.error('Failed to establish WebSocket connection');
         }
       }
     };
@@ -150,7 +141,7 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl, userDisplayName }) => {
   const addNote = async () => {
     if (!newTitle || !newNote || !userDisplayName) return;
 
-    setIsLoading(true);
+    setIsAccessingServer(true);
     try {
       const { tokens } = await fetchAuthSession();
       await axios.post(`${restApiUrl}/add`, { title: newTitle, content: newNote }, { headers: { Authorization: `Bearer ${tokens.idToken}` } });
@@ -162,7 +153,7 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl, userDisplayName }) => {
       console.error('Error adding note:', error);
       toast.error('Failed to add note');
     } finally {
-      setIsLoading(false);
+      setIsAccessingServer(false);
     }
   };
 
@@ -182,7 +173,7 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl, userDisplayName }) => {
   const updateNote = async () => {
     if (!editingTitle || !editingContent || !userDisplayName || !editingNote) return;
 
-    setIsLoading(true);
+    setIsAccessingServer(true);
     try {
       const { tokens } = await fetchAuthSession();
       await axios.put(
@@ -199,13 +190,13 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl, userDisplayName }) => {
       console.error('Error updating note:', error);
       toast.error('Failed to update note');
     } finally {
-      setIsLoading(false);
+      setIsAccessingServer(false);
     }
   };
 
   const deleteNote = async (id) => {
     if (userDisplayName && window.confirm('Are you sure you want to delete this note?')) {
-      setIsLoading(true);
+      setIsAccessingServer(true);
       try {
         const { tokens } = await fetchAuthSession();
         await axios.delete(`${restApiUrl}/delete/${id}`, {
@@ -216,7 +207,7 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl, userDisplayName }) => {
         console.error('Error deleting note:', error);
         toast.error('Failed to delete note');
       } finally {
-        setIsLoading(false);
+        setIsAccessingServer(false);
       }
     }
   };
@@ -268,167 +259,153 @@ For more Markdown tips, check out a [Markdown Cheat Sheet](https://www.markdowng
   };
 
   return (
-    <div className='CrudOperationsContainer'>
+    <div className={`CrudOperationsContainer ${isAccessingServer && !searchTerm ? 'CrudOperationsContainer--loading' : ''}`}>
       <ToastContainer />
-      {isLoading && !searchTerm ? (
-        <LoadingSpinner />
-      ) : (
-        <div className='CrudOperations'>
-          {!editingNote && (
-            <>
-              <div className='action-buttons'>
-                {!isAddingNote && (
-                  <>
-                    <button
-                      onClick={() => setIsAddingNote(true)}
-                      className={`icon-button ${notes.length === 0 && !searchTerm ? 'flash' : ''}`}
-                      title='Add New Note'>
-                      <Plus size={20} />
-                      <span className='sr-only'>Add New Note</span>
-                    </button>
-                    <button onClick={toggleViewMode} className='icon-button' title={`Switch to ${viewMode === 'table' ? 'Preview' : 'Table'} View`}>
-                      {viewMode === 'table' ? <Eye size={20} /> : <List size={20} />}
-                      <span className='sr-only'>Switch View</span>
-                    </button>
-                    {(notes.length > 0 || searchTerm) && (
-                      <button
-                        onClick={toggleSearchPane}
-                        className={`icon-button ${showSearchPane && 'search-open'} ${searchTerm && 'search-active'}`}
-                        title='Toggle Search'>
-                        <Search size={20} />
-                        <span className='sr-only'>Toggle Search</span>
-                      </button>
-                    )}
-                    <button onClick={toggleHelp} className='icon-button' title='Toggle Help'>
-                      <HelpCircle size={20} />
-                      <span className='sr-only'>Toggle Help</span>
-                    </button>
-                  </>
-                )}
-              </div>
-
-              {showSearchPane && (
-                <div className='search-pane'>
-                  <div className='search-input-wrapper'>
-                    <input type='text' value={searchTerm} onChange={handleSearchChange} placeholder='Enter search term' className='search-input' />
-                    {searchTerm && (
-                      <button onClick={clearSearch} className='clear-search' title='Clear Search'>
-                        <X size={16} />
-                        <span className='sr-only'>Clear Search</span>
-                      </button>
-                    )}
-                  </div>
-                  <div className='search-options'>
-                    <label>
-                      <input type='checkbox' checked={searchInTitle} onChange={(e) => handleSearchOptionChange('title', e.target.checked)} />
-                      Search in Title
-                    </label>
-                    <label>
-                      <input type='checkbox' checked={searchInContent} onChange={(e) => handleSearchOptionChange('content', e.target.checked)} />
-                      Search in Content
-                    </label>
-                    <label>
-                      <input type='checkbox' checked={caseSensitive} onChange={(e) => handleSearchOptionChange('caseSensitive', e.target.checked)} />
-                      Case Sensitive
-                    </label>
-                  </div>
-                </div>
-              )}
-
-              {showHelp && (
-                <div className='help-content'>
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{helpContent}</ReactMarkdown>
-                </div>
-              )}
-
-              {isAddingNote && (
-                <div className='add-note-form'>
-                  <input type='text' value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder='Enter a new note title' />
-                  <textarea value={newNote} onChange={(e) => setNewNote(e.target.value)} placeholder='Enter a new note content' rows={10} />
-                  <div className='add-note-form-buttons'>
-                    <button onClick={() => setIsAddingNote(false)} className='icon-button cancel' title='Cancel'>
-                      <ArrowLeft size={20} />
-                      <span className='sr-only'>Cancel</span>
-                    </button>
-                    {newTitle.trim() !== '' && newNote.trim() !== '' && (
-                      <button onClick={addNote} className='icon-button flash save-button' title='Save Note'>
-                        <Save size={20} />
-                        <span className='sr-only'>Save Note</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-          {editingNote ? (
-            <div className='edit-note-form'>
-              <div className='edit-note-form-buttons'>
-                <button
-                  onClick={() => {
-                    if (!hasChanges || window.confirm('You have unsaved changes. Are you sure you want to go back to the table?')) {
-                      setEditingNote(null);
-                    }
-                  }}
-                  className='icon-button cancel'
-                  title='Back to Table'>
-                  <ArrowLeft size={20} />
-                  <span className='sr-only'>Back to Table</span>
-                </button>
-                {hasChanges && (
-                  <button onClick={updateNote} className='icon-button flash save-button' title='Save Changes'>
-                    <Save size={20} />
-                    <span className='sr-only'>Save Changes</span>
+      {isAccessingServer && !searchTerm && <LoadingSpinner />}
+      <div className='CrudOperations'>
+        {!editingNote && (
+          <>
+            <div className='action-buttons'>
+              {!isAddingNote && (
+                <>
+                  <button
+                    onClick={() => setIsAddingNote(true)}
+                    className={`icon-button ${notes.length === 0 && !searchTerm ? 'flash' : ''}`}
+                    title='Add New Note'>
+                    <Plus size={20} />
+                    <span className='sr-only'>Add New Note</span>
                   </button>
-                )}
-              </div>
-              <div className='edit-note-content'>
-                <input type='text' value={editingTitle} onChange={(e) => handleEditChange('title', e.target.value)} placeholder='Note title' />
-                <textarea value={editingContent} onChange={(e) => handleEditChange('content', e.target.value)} placeholder='Note content' />
-              </div>
+                  <button onClick={toggleViewMode} className='icon-button' title={`Switch to ${viewMode === 'table' ? 'Preview' : 'Table'} View`}>
+                    {viewMode === 'table' ? <Eye size={20} /> : <List size={20} />}
+                    <span className='sr-only'>Switch View</span>
+                  </button>
+                  {(notes.length > 0 || searchTerm) && (
+                    <button
+                      onClick={toggleSearchPane}
+                      className={`icon-button ${showSearchPane && 'search-open'} ${searchTerm && 'search-active'}`}
+                      title='Toggle Search'>
+                      <Search size={20} />
+                      <span className='sr-only'>Toggle Search</span>
+                    </button>
+                  )}
+                  <button onClick={toggleHelp} className='icon-button' title='Toggle Help'>
+                    <HelpCircle size={20} />
+                    <span className='sr-only'>Toggle Help</span>
+                  </button>
+                </>
+              )}
             </div>
-          ) : viewMode === 'table' ? (
-            <div className='table-container'>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Updated</th>
-                    <th>Title</th>
-                    <th>Content</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {notes.map((note) => (
-                    <tr key={note.id}>
-                      <td>{new Date(note.updatedAt).toLocaleString()}</td>
-                      <td>{note.title}</td>
-                      <td>{note.content.length > 100 ? note.content.substring(0, 100) + '...' : note.content}</td>
-                      <td>
-                        <button onClick={() => startEditingNote(note)} className='icon-button' title='Edit Note'>
-                          <Pencil size={20} />
-                          <span className='sr-only'>Edit</span>
-                        </button>
-                        <button onClick={() => deleteNote(note.id)} className='icon-button' title='Delete Note'>
-                          <Trash2 size={20} />
-                          <span className='sr-only'>Delete</span>
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+
+            {showSearchPane && (
+              <div className='search-pane'>
+                <div className='search-input-wrapper'>
+                  <input type='text' value={searchTerm} onChange={handleSearchChange} placeholder='Enter search term' className='search-input' />
+                  {searchTerm && (
+                    <button onClick={clearSearch} className='clear-search' title='Clear Search'>
+                      <X size={16} />
+                      <span className='sr-only'>Clear Search</span>
+                    </button>
+                  )}
+                </div>
+                <div className='search-options'>
+                  <label>
+                    <input type='checkbox' checked={searchInTitle} onChange={(e) => handleSearchOptionChange('title', e.target.checked)} />
+                    Search in Title
+                  </label>
+                  <label>
+                    <input type='checkbox' checked={searchInContent} onChange={(e) => handleSearchOptionChange('content', e.target.checked)} />
+                    Search in Content
+                  </label>
+                  <label>
+                    <input type='checkbox' checked={caseSensitive} onChange={(e) => handleSearchOptionChange('caseSensitive', e.target.checked)} />
+                    Case Sensitive
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {showHelp && (
+              <div className='help-content'>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{helpContent}</ReactMarkdown>
+              </div>
+            )}
+
+            {isAddingNote && (
+              <div className='add-note-form'>
+                <input type='text' value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder='Enter a new note title' />
+                <textarea value={newNote} onChange={(e) => setNewNote(e.target.value)} placeholder='Enter a new note content' rows={10} />
+                <div className='add-note-form-buttons'>
+                  <button
+                    onClick={() => {
+                      if (
+                        (newTitle.trim() === '' && newNote.trim() === '') ||
+                        window.confirm('You have unsaved changes. Are you sure you want to go back to the table?')
+                      ) {
+                        setIsAddingNote(false);
+                        setNewTitle('');
+                        setNewNote('');
+                      }
+                    }}
+                    className='icon-button cancel'
+                    title='Cancel'>
+                    <ArrowLeft size={20} />
+                    <span className='sr-only'>Cancel</span>
+                  </button>
+                  {newTitle.trim() !== '' && newNote.trim() !== '' && (
+                    <button onClick={addNote} className='icon-button flash save-button' title='Save Note'>
+                      <Save size={20} />
+                      <span className='sr-only'>Save Note</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+        {editingNote ? (
+          <div className='edit-note-form'>
+            <div className='edit-note-form-buttons'>
+              <button
+                onClick={() => {
+                  if (!hasChanges || window.confirm('You have unsaved changes. Are you sure you want to go back to the table?')) {
+                    setEditingNote(null);
+                  }
+                }}
+                className='icon-button cancel'
+                title='Back to Table'>
+                <ArrowLeft size={20} />
+                <span className='sr-only'>Back to Table</span>
+              </button>
+              {hasChanges && (
+                <button onClick={updateNote} className='icon-button flash save-button' title='Save Changes'>
+                  <Save size={20} />
+                  <span className='sr-only'>Save Changes</span>
+                </button>
+              )}
             </div>
-          ) : (
-            <div className='preview-container'>
-              {notes.map((note) => (
-                <div key={note.id} className='note-preview'>
-                  <div className='note-preview-header'>
-                    <span className='note-preview-date'>{new Date(note.updatedAt).toLocaleString()}</span>
-                    <h2 className='note-preview-title' title={note.title.length > 50 ? note.title : undefined}>
-                      {note.title.length > 50 ? note.title.substring(0, 50) + '..' : note.title}
-                    </h2>
-                    <div className='note-preview-actions'>
+            <div className='edit-note-content'>
+              <input type='text' value={editingTitle} onChange={(e) => handleEditChange('title', e.target.value)} placeholder='Note title' />
+              <textarea value={editingContent} onChange={(e) => handleEditChange('content', e.target.value)} placeholder='Note content' />
+            </div>
+          </div>
+        ) : viewMode === 'table' ? (
+          <div className='table-container'>
+            <table>
+              <thead>
+                <tr>
+                  <th>Updated</th>
+                  <th>Title</th>
+                  <th>Content</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {notes.map((note) => (
+                  <tr key={note.id}>
+                    <td>{new Date(note.updatedAt).toLocaleString()}</td>
+                    <td>{note.title}</td>
+                    <td>{note.content.length > 100 ? note.content.substring(0, 100) + '...' : note.content}</td>
+                    <td>
                       <button onClick={() => startEditingNote(note)} className='icon-button' title='Edit Note'>
                         <Pencil size={20} />
                         <span className='sr-only'>Edit</span>
@@ -437,20 +414,49 @@ For more Markdown tips, check out a [Markdown Cheat Sheet](https://www.markdowng
                         <Trash2 size={20} />
                         <span className='sr-only'>Delete</span>
                       </button>
-                    </div>
-                  </div>{' '}
-                  <div className='note-preview-content'>
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{note.content}</ReactMarkdown>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className='preview-container'>
+            {notes.map((note) => (
+              <div key={note.id} className='note-preview'>
+                <div className='note-preview-header'>
+                  <span className='note-preview-date'>{new Date(note.updatedAt).toLocaleString()}</span>
+                  <h2 className='note-preview-title' title={note.title.length > 50 ? note.title : undefined}>
+                    {note.title.length > 50 ? note.title.substring(0, 50) + '..' : note.title}
+                  </h2>
+                  <div className='note-preview-actions'>
+                    <button onClick={() => startEditingNote(note)} className='icon-button' title='Edit Note'>
+                      <Pencil size={20} />
+                      <span className='sr-only'>Edit</span>
+                    </button>
+                    <button onClick={() => deleteNote(note.id)} className='icon-button' title='Delete Note'>
+                      <Trash2 size={20} />
+                      <span className='sr-only'>Delete</span>
+                    </button>
                   </div>
+                </div>{' '}
+                <div className='note-preview-content'>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{note.content}</ReactMarkdown>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
+
+const LoadingSpinner = () => (
+  <div className='flex items-center justify-center w-full h-32'>
+    <Loader2 className='w-8 h-8 animate-spin text-blue-500 spinner' />
+  </div>
+);
 
 function prepareSearchParams(searchTerm, searchInTitle, searchInContent, caseSensitive) {
   let searchParams = {};

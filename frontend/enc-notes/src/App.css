@@ -3,12 +3,18 @@
   text-align: center;
   max-width: 100vw;
   overflow-x: hidden;
-  padding: 20px;
+  padding: 0 20px;
   box-sizing: border-box;
   background-color: #fcfcfc;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+}
+
+.App-header {
+  font-size: 2rem;
+  margin: 0.5rem 0;
+  font-weight: bolder;
 }
 
 .build-info {
@@ -135,6 +141,21 @@ h1 {
 /* CRUD Operations Styles */
 .CrudOperationsContainer {
   margin-top: 2rem;
+}
+
+.CrudOperationsContainer--loading {
+  pointer-events: none;  /* Prevents interaction with content */
+}
+
+.CrudOperationsContainer--loading::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.7);  /* Semi-transparent white overlay */
+  z-index: 10;  /* Ensures overlay is above content */
 }
 
 .spinner {
@@ -676,6 +697,14 @@ td:nth-child(4) .icon-button {
 
 /* Responsive Design */
 @media (max-width: 768px) {
+  .App {
+    padding: 10px;
+  }
+ 
+  .App-header {
+    margin-top: 0.2rem;
+  }
+  
   .body.without-overview:not(:has(.welcome-auth-container)) {
     margin-top: -20px;
   }
@@ -710,10 +739,6 @@ td:nth-child(4) .icon-button {
     align-self: stretch;
   }
 
-  .App {
-    padding: 10px;
-  }
- 
   .welcome-auth-container {
     flex-wrap: nowrap;
   }
