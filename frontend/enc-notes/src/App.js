@@ -72,13 +72,24 @@ function App() {
         {!userDisplayName && showOverview && (
           <div className='app-overview'>
             <hr />
-            <p className='header1'>AWS-based web app for managing encrypted notes.</p>
-            <p className='header2'>
-              Authenticated users can securely add, edit, delete, and list notes, isolated from other users using unique encryption keys.
-            </p>
+            <p className='header1'>Encrypted Notes Web App</p>
+            <ul className='header2'>
+              <li>The application enables authenticated users to add, edit, delete, and list encrypted notes.</li>
+              <li>Each user is isolated from others through the use of unique encryption keys.</li>
+              <li>Users sharing the same account receive immediate notifications of any changes made by other users.</li>
+            </ul>
 
-            <a href='https://lucid.app/publicSegments/view/5e9dd4cb-d614-40ba-9287-1e4c0af8dfa3/image.jpeg' target='_blank' rel='noopener noreferrer'>
-              <img src='https://lucid.app/publicSegments/view/5e9dd4cb-d614-40ba-9287-1e4c0af8dfa3/image.jpeg' alt='No User Authenticated' />
+            <div className='link-container'>
+              <a href='http://www.linkedin.com/in/eran-hachmon' target='_blank' rel='noopener noreferrer'>
+                LinkedIn
+              </a>
+              <a href='https://github.com/erancha/aws-encrypted-notes' target='_blank' rel='noopener noreferrer'>
+                GitHub
+              </a>
+            </div>
+
+            <a href='https://lucid.app/publicSegments/view/e66e819e-6abc-434d-bb9d-5d7a007887da/image.jpeg' target='_blank' rel='noopener noreferrer'>
+              <img src='https://lucid.app/publicSegments/view/e66e819e-6abc-434d-bb9d-5d7a007887da/image.jpeg' alt='No User Authenticated' />
             </a>
           </div>
         )}

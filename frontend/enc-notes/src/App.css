@@ -67,11 +67,13 @@
 }
 
 .app-overview .header2 {
-  font-size: 0.9rem;
+  font-size: 1rem;
   margin: 1rem auto;
+  max-width: 40%;
+  text-align: left;
 }
 
-.app-overview p {
+.app-overview ul {
   text-align: center;
   max-width: 60%;
   margin: 0 auto;
@@ -81,6 +83,25 @@
   max-width: 40%;
   height: auto;
   margin: 2rem;
+}
+
+.link-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.link-container a {
+  text-decoration: none;
+  color: #0073e6;
+  font-size: 0.9rem;
+  text-decoration: underline;
+}
+
+.link-container a:hover {
+  border-bottom: 3px solid;
 }
 
 /* Animation Base Class */
@@ -667,10 +688,10 @@ td:nth-child(4) .icon-button {
     margin-top: 1rem;
   }
   
-  .app-overview p {
+  .app-overview .header2 {
     max-width: 90%;
   }
-  
+    
   .app-overview img {
     max-width: 90%;
     margin: 1rem;
