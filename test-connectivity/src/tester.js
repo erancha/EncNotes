@@ -9,7 +9,8 @@ const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
 //   "kms": true,
 //   "redisParams": {
 //     "test": true,
-//     "clearUnnamed": true
+//     "deleteUnnamed": true,
+//     "deleteKeys": ["connections:23743842-4061-709b-44f8-4ef9a527509d"]
 //   },
 //   "websocketParams": {
 //     "test": false,
@@ -105,8 +106,8 @@ async function testRedisConnectivity(redisParams) {
       console.log('No keys found in Redis.');
     } else {
       for (const key of keys) {
-        if (!key.includes(':') && redisParams.clearUnnamed) {
-          console.log(`Deleting unnamed key: ${key}`);
+        if ((!key.includes(':') && redisParams.deleteUnnamed) || redisParams.deleteKeys?.includes(key)) {
+          console.log(`Deleting key: ${key}`);
           await redisClient.del(key);
         } else {
           const type = await redisClient.type(key); // Get the type of the key

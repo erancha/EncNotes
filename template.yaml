@@ -407,115 +407,115 @@ Resources:
           FromPort: 6379
           ToPort: 6379
           SourceSecurityGroupId: !If [CreateNotesLambdaSG, !Ref NotesLambdaSG, !Ref ExistingNotesLambdaSGId]
-        - IpProtocol: tcp
-          FromPort: 6379
-          ToPort: 6379
-          SourceSecurityGroupId: !Ref BastionSG
-      # SecurityGroupEgress: [] # TODO: ??
+        # - IpProtocol: tcp
+        #   FromPort: 6379
+        #   ToPort: 6379
+        #   SourceSecurityGroupId: !Ref BastionSG
+      SecurityGroupEgress: [] # TODO: ??
 
   # Bastion Host for Redis Access
   # -----------------------------
-  MyPublicSubnet:
-    Type: AWS::EC2::Subnet
-    Condition: CreatePublicSubnet
-    Properties:
-      VpcId: !If [CreateVpc, !Ref MyVPC, !Ref ExistingVpcId]
-      CidrBlock: 10.0.1.0/24
-      AvailabilityZone: !Select [0, !GetAZs '']
-      MapPublicIpOnLaunch: true
-      Tags:
-        - Key: Name
-          Value: !Sub '${AWS::StackName}-PublicSubnet'
+  # MyPublicSubnet:
+  #   Type: AWS::EC2::Subnet
+  #   Condition: CreatePublicSubnet
+  #   Properties:
+  #     VpcId: !If [CreateVpc, !Ref MyVPC, !Ref ExistingVpcId]
+  #     CidrBlock: 10.0.1.0/24
+  #     AvailabilityZone: !Select [0, !GetAZs '']
+  #     MapPublicIpOnLaunch: true
+  #     Tags:
+  #       - Key: Name
+  #         Value: !Sub '${AWS::StackName}-PublicSubnet'
 
-  MyPublicSubnetRouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Condition: CreateElasticacheRedisCluster
-    Properties:
-      SubnetId: !Ref MyPublicSubnet
-      RouteTableId: !Ref MyRouteTable
+  # MyPublicSubnetRouteTableAssociation:
+  #   Type: AWS::EC2::SubnetRouteTableAssociation
+  #   Condition: CreateElasticacheRedisCluster
+  #   Properties:
+  #     SubnetId: !Ref MyPublicSubnet
+  #     RouteTableId: !Ref MyRouteTable
 
-  MyPublicRoute:
-    Type: AWS::EC2::Route
-    Condition: CreateElasticacheRedisCluster
-    Properties:
-      RouteTableId: !Ref MyRouteTable
-      DestinationCidrBlock: '0.0.0.0/0'
-      GatewayId: !Ref MyInternetGateway
+  # MyPublicRoute:
+  #   Type: AWS::EC2::Route
+  #   Condition: CreateElasticacheRedisCluster
+  #   Properties:
+  #     RouteTableId: !Ref MyRouteTable
+  #     DestinationCidrBlock: '0.0.0.0/0'
+  #     GatewayId: !Ref MyInternetGateway
 
-  MyInternetGateway:
-    Type: AWS::EC2::InternetGateway
-    Condition: CreateElasticacheRedisCluster
-    Properties:
-      Tags:
-        - Key: Name
-          Value: !Sub '${AWS::StackName}-InternetGateway'
+  # MyInternetGateway:
+  #   Type: AWS::EC2::InternetGateway
+  #   Condition: CreateElasticacheRedisCluster
+  #   Properties:
+  #     Tags:
+  #       - Key: Name
+  #         Value: !Sub '${AWS::StackName}-InternetGateway'
 
-  AttachInternetGateway:
-    Type: AWS::EC2::VPCGatewayAttachment
-    Condition: CreateElasticacheRedisCluster
-    Properties:
-      VpcId: !If [CreateVpc, !Ref MyVPC, !Ref ExistingVpcId]
-      InternetGatewayId: !Ref MyInternetGateway
+  # AttachInternetGateway:
+  #   Type: AWS::EC2::VPCGatewayAttachment
+  #   Condition: CreateElasticacheRedisCluster
+  #   Properties:
+  #     VpcId: !If [CreateVpc, !Ref MyVPC, !Ref ExistingVpcId]
+  #     InternetGatewayId: !Ref MyInternetGateway
 
-  BastionHost:
-    Type: AWS::EC2::Instance
-    Condition: CreateElasticacheRedisCluster
-    Properties:
-      InstanceType: t2.micro
-      ImageId: ami-0f3a22468a3535271 # Amazon Linux 2 AMI (HVM) - Kernel 5.10, SSD Volume Type ..
-      # to use redis-cli:
-      # (1) sudo yum update -y
-      #     sudo amazon-linux-extras install redis6
-      # (2) redis-cli -h en-elasticache-redis-cluster.hz2zez.0001.euc1.cache.amazonaws.com
-      # (3) keys *
-      #     get "users:APq0hdx0liACFZw="
-      #     smembers "connections:23743842-4061-709b-44f8-4ef9a527509d"
-      #     flushall
-      NetworkInterfaces:
-        - AssociatePublicIpAddress: 'true'
-          DeviceIndex: '0'
-          GroupSet:
-            - !Ref BastionSG
-          SubnetId: !Ref MyPublicSubnet
-      Tags:
-        - Key: Name
-          Value: !Sub '${AWS::StackName} - Redis Bastion Host'
+  # BastionHost:
+  #   Type: AWS::EC2::Instance
+  #   Condition: CreateElasticacheRedisCluster
+  #   Properties:
+  #     InstanceType: t2.micro
+  #     ImageId: ami-0f3a22468a3535271 # Amazon Linux 2 AMI (HVM) - Kernel 5.10, SSD Volume Type ..
+  #     # to use redis-cli:
+  #     # (1) sudo yum update -y
+  #     #     sudo amazon-linux-extras install redis6
+  #     # (2) redis-cli -h en-elasticache-redis-cluster.hz2zez.0001.euc1.cache.amazonaws.com
+  #     # (3) keys *
+  #     #     get "users:APq0hdx0liACFZw="
+  #     #     smembers "connections:23743842-4061-709b-44f8-4ef9a527509d"
+  #     #     flushall
+  #     NetworkInterfaces:
+  #       - AssociatePublicIpAddress: 'true'
+  #         DeviceIndex: '0'
+  #         GroupSet:
+  #           - !Ref BastionSG
+  #         SubnetId: !Ref MyPublicSubnet
+  #     Tags:
+  #       - Key: Name
+  #         Value: !Sub '${AWS::StackName} - Redis Bastion Host'
 
-  BastionSG:
-    Type: AWS::EC2::SecurityGroup
-    Condition: CreateElasticacheRedisCluster
-    Properties:
-      GroupDescription: Security group for Bastion host
-      Tags:
-        - Key: Name
-          Value: !Sub '${AWS::StackName}-BastionSG'
-      SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 22
-          ToPort: 22
-          CidrIp: 0.0.0.0/0
-      VpcId: !If [CreateVpc, !Ref MyVPC, !Ref ExistingVpcId]
+  # BastionSG:
+  #   Type: AWS::EC2::SecurityGroup
+  #   Condition: CreateElasticacheRedisCluster
+  #   Properties:
+  #     GroupDescription: Security group for Bastion host
+  #     Tags:
+  #       - Key: Name
+  #         Value: !Sub '${AWS::StackName}-BastionSG'
+  #     SecurityGroupIngress:
+  #       - IpProtocol: tcp
+  #         FromPort: 22
+  #         ToPort: 22
+  #         CidrIp: 0.0.0.0/0
+  #     VpcId: !If [CreateVpc, !Ref MyVPC, !Ref ExistingVpcId]
 
-  EC2InstanceConnectRole:
-    Type: AWS::IAM::Role
-    Condition: CreateElasticacheRedisCluster
-    Properties:
-      RoleName: !Sub ${AWS::StackName}-EC2InstanceConnectRole
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: ec2.amazonaws.com
-            Action: sts:AssumeRole
-      Policies:
-        - PolicyName: EC2InstanceConnectPolicy
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action: ec2-instance-connect:SendSSHPublicKey
-                Resource: '*'
+  # EC2InstanceConnectRole:
+  #   Type: AWS::IAM::Role
+  #   Condition: CreateElasticacheRedisCluster
+  #   Properties:
+  #     RoleName: !Sub ${AWS::StackName}-EC2InstanceConnectRole
+  #     AssumeRolePolicyDocument:
+  #       Version: '2012-10-17'
+  #       Statement:
+  #         - Effect: Allow
+  #           Principal:
+  #             Service: ec2.amazonaws.com
+  #           Action: sts:AssumeRole
+  #     Policies:
+  #       - PolicyName: EC2InstanceConnectPolicy
+  #         PolicyDocument:
+  #           Version: '2012-10-17'
+  #           Statement:
+  #             - Effect: Allow
+  #               Action: ec2-instance-connect:SendSSHPublicKey
+  #               Resource: '*'
 
   # ------------------------------------------------------------------------------
   # s3, cloudfront, api gateway and lambda functions invoked from the api gateway.
