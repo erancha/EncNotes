@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-This document outlines the architecture for an AWS-based web application to manage encrypted notes. The application allows authenticated users to add, edit, delete and list notes through a web-based interface, isolated with different encryption key per user.
+This document outlines the architecture for an AWS-based web application to manage encrypted notes. The application allows authenticated users to add, edit, delete and list notes through a web-based interface, isolated with different encryption key per user, and with websocket notifications between multiple devices of any user.
 
 ## 2. Architecture Components
 
