@@ -127,17 +127,6 @@
   margin: 0 50px;
 }
 
-h1 {
-  color: #333;
-}
-
-.build-info {
-  font-size: 0.6rem;
-  color: #666;
-  text-align: right;
-  padding: 5px 10px;
-}
-
 /* CRUD Operations Styles */
 .CrudOperationsContainer {
   margin-top: 2rem;
@@ -701,6 +690,10 @@ td:nth-child(4) .icon-button {
     padding: 10px;
   }
  
+  .build-info {
+    font-size: 0.4rem;
+  }
+  
   .App-header {
     margin-top: 0.2rem;
   }
