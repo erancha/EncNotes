@@ -7,3 +7,7 @@ This document outlines an AWS-based web application to manage encrypted notes. T
 ## 2. Architecture
 
 [Architecture document](architecture-document.md)
+
+## 3. Live deployment
+
+https://d8z8oboi5znfz.cloudfront.net
