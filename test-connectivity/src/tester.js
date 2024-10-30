@@ -7,7 +7,10 @@ const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
 // {
 //   "dynamodb": true,
 //   "kms": true,
-//   "redis": true,
+//   "redisParams": {
+//     "test": true,
+//     "clearUnnamed": true
+//   },
 //   "websocketParams": {
 //     "test": false,
 //     "websocketUrl": "wss://2tjkvv6211.execute-api.eu-central-1.amazonaws.com/dev",
@@ -30,7 +33,7 @@ exports.handler = async (event) => {
 
     if (event.dynamodb) connectivityTested = await testDynamoDBConnectivity();
     if (event.kms) connectivityTested = await testKMSConnectivity();
-    if (event.redis) connectivityTested = await testRedisConnectivity();
+    if (event.redisParams?.test) connectivityTested = await testRedisConnectivity(event.redisParams);
     if (event.websocketParams?.test) connectivityTested = await testWebSocketConnectivity(event.websocketParams);
     if (event.sqsParams?.test) connectivityTested = await testSQSConnectivity(event.sqsParams);
 
@@ -86,7 +89,7 @@ async function testKMSConnectivity() {
 }
 
 //=============================================================================================================
-async function testRedisConnectivity() {
+async function testRedisConnectivity(redisParams) {
   const redisAddress = process.env.ELASTICACHE_REDIS_ADDRESS;
   if (!redisAddress) {
     console.log('Redis Connectivity Test: Skipped (No Redis address provided)');
@@ -97,20 +100,27 @@ async function testRedisConnectivity() {
     console.log(`testRedisConnectivity: ${redisAddress}`);
     const redisClient = new Redis(redisAddress);
 
-    const KEY = 'dummy-user-id';
-    const userDataKey = await redisClient.get(KEY);
-
-    // If the key is not found, insert it
-    if (userDataKey === null) {
-      console.log(`Key ${KEY} not found. Inserting...`);
-      await redisClient.set(KEY, JSON.stringify({ name: 'John Doe', age: 30 }));
-      console.log('Inserted dummy user data.');
-
-      // Fetch it again to verify insertion
-      const fetchedUserDataKey = await redisClient.get(KEY);
-      console.log(`fetchedUserDataKey: ${fetchedUserDataKey}`);
+    const keys = await redisClient.keys('*'); // Get all keys from the Redis database
+    if (keys.length === 0) {
+      console.log('No keys found in Redis.');
     } else {
-      console.log(`userDataKey: ${KEY} found`);
+      for (const key of keys) {
+        if (!key.includes(':') && redisParams.clearUnnamed) {
+          console.log(`Deleting unnamed key: ${key}`);
+          await redisClient.del(key);
+        } else {
+          const type = await redisClient.type(key); // Get the type of the key
+          if (type === 'string') {
+            const value = await redisClient.get(key); // Fetch the value for string keys
+            console.log(`Key: ${key}, Value: ${value}`);
+          } else if (type === 'set') {
+            const members = await redisClient.smembers(key); // Get all members of the set
+            console.log(`Key: ${key}, Members: ${JSON.stringify(members)}`);
+          } else {
+            console.log(`Key: ${key}, Type: ${type} (not a string or set)`);
+          }
+        }
+      }
     }
 
     await redisClient.quit();
