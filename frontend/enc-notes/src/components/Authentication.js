@@ -84,7 +84,7 @@ const Authentication = ({ cognitoConfig, setErrorMessage, setUserDisplayName, si
         setPassword('');
         setErrorMessage('');
       } else {
-        console.log('Additional sign-in step required:', nextStep);
+        // console.log('Additional sign-in step required:', nextStep);
       }
     } catch (error) {
       console.error('Error signing in', error);

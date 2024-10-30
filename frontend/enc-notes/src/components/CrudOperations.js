@@ -79,11 +79,11 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl, userDisplayName }) => {
           isConnectingRef.current = false;
 
           socketRef.current.onopen = () => {
-            console.log('WebSocket Connected');
+            // console.log('WebSocket Connected');
           };
 
           socketRef.current.onmessage = (event) => {
-            console.log('Received message:', event.data);
+            // console.log('Received message:', event.data);
             try {
               const data = JSON.parse(event.data);
               if (data.command?.refresh) fetchNotes(); //TODO: In case this is an update from the current client, this fetch is redundant.
@@ -105,7 +105,7 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl, userDisplayName }) => {
           };
 
           socketRef.current.onclose = (event) => {
-            console.log('WebSocket closed:', event.code, event.reason);
+            // console.log('WebSocket closed:', event.code, event.reason);
             socketRef.current = null;
             if (event.code === 1005) connectWebSocket();
             else setTimeout(connectWebSocket, 1000);
