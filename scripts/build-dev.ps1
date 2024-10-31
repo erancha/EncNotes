@@ -77,10 +77,9 @@ if ($LASTEXITCODE -eq 0) {
 
         if ($isMainBranch) {
             $parameterOverrides += "StageName='prod'"
-            $parameterOverrides += "OnlyCloudfrontOrigin=true"
+            # $parameterOverrides += "AllowOnlyCloudfrontOrigin=true"
         }
         else {
-            $parameterOverrides += "OnlyCloudfrontOrigin=false"
             # In feature branch, reuse the follwing resources in the main branch:
             $parameterOverrides += "ExistingElasticacheRedisClusterAddress='en-elasticache-redis-cluster.hz2zez.0001.euc1.cache.amazonaws.com:6379'"
             $parameterOverrides += "ExistingVpcId='vpc-08016eb77e7ac9962'"

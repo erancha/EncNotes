@@ -21,7 +21,7 @@ Parameters:
       - 'true'
       - 'false'
     Default: 'false'
-  OnlyCloudfrontOrigin:
+  AllowOnlyCloudfrontOrigin:
     Description: 'Allow only CloudFront origin'
     Type: String
     AllowedValues:
@@ -134,7 +134,7 @@ Conditions:
     - !Condition HasCustomDomainName
     - !Condition HasCertificateArn
   AllowS3PublicAccess: !Equals [!Ref S3PublicAccess, 'true']
-  AllowOnlyCloudfrontOrigin: !Equals [!Ref OnlyCloudfrontOrigin, 'true']
+  AllowOnlyCloudfrontOriginCondition: !Equals [!Ref AllowOnlyCloudfrontOrigin, 'true']
   CreateElasticacheRedisCluster: !Equals [!Ref ExistingElasticacheRedisClusterAddress, '']
   EnableUserDataKeysCacheCondition: !Equals [!Ref EnableUserDataKeysCache, 'true']
   CreateNotesTable: !Equals [!Ref ExistingNotesTableName, '']
@@ -525,7 +525,7 @@ Resources:
   FrontendBucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub ${AWS::StackName}-frontend
+      BucketName: !Sub ${AWS::StackName}-frontend-static
       WebsiteConfiguration:
         IndexDocument: index.html
         ErrorDocument: error.html
@@ -804,7 +804,7 @@ Resources:
         Variables:
           NOTES_TABLE_NAME: !If [CreateNotesTable, !Ref NotesTable, !Ref ExistingNotesTableName]
           ALLOWED_ORIGIN: !If
-            - AllowOnlyCloudfrontOrigin
+            - AllowOnlyCloudfrontOriginCondition
             - !Sub 'https://${FrontendDistribution.DomainName}'
             - "'*'"
           KMS_KEY_ALIAS: !Ref NotesEncryptionKeyAlias
@@ -851,7 +851,7 @@ Resources:
         Variables:
           NOTES_TABLE_NAME: !If [CreateNotesTable, !Ref NotesTable, !Ref ExistingNotesTableName]
           ALLOWED_ORIGIN: !If
-            - AllowOnlyCloudfrontOrigin
+            - AllowOnlyCloudfrontOriginCondition
             - !Sub 'https://${FrontendDistribution.DomainName}'
             - "'*'"
           KMS_KEY_ALIAS: !Ref NotesEncryptionKeyAlias
@@ -896,7 +896,7 @@ Resources:
         Variables:
           NOTES_TABLE_NAME: !If [CreateNotesTable, !Ref NotesTable, !Ref ExistingNotesTableName]
           ALLOWED_ORIGIN: !If
-            - AllowOnlyCloudfrontOrigin
+            - AllowOnlyCloudfrontOriginCondition
             - !Sub 'https://${FrontendDistribution.DomainName}'
             - "'*'"
           KMS_KEY_ALIAS: !Ref NotesEncryptionKeyAlias
@@ -940,7 +940,7 @@ Resources:
         Variables:
           NOTES_TABLE_NAME: !If [CreateNotesTable, !Ref NotesTable, !Ref ExistingNotesTableName]
           ALLOWED_ORIGIN: !If
-            - AllowOnlyCloudfrontOrigin
+            - AllowOnlyCloudfrontOriginCondition
             - !Sub 'https://${FrontendDistribution.DomainName}'
             - "'*'"
           KMS_KEY_ALIAS: !Ref NotesEncryptionKeyAlias
@@ -1091,7 +1091,7 @@ Resources:
       Environment:
         Variables:
           ALLOWED_ORIGIN: !If
-            - AllowOnlyCloudfrontOrigin
+            - AllowOnlyCloudfrontOriginCondition
             - !Sub 'https://${FrontendDistribution.DomainName}'
             - "'*'"
           ELASTICACHE_REDIS_ADDRESS: !If
@@ -1120,7 +1120,7 @@ Resources:
       Environment:
         Variables:
           ALLOWED_ORIGIN: !If
-            - AllowOnlyCloudfrontOrigin
+            - AllowOnlyCloudfrontOriginCondition
             - !Sub 'https://${FrontendDistribution.DomainName}'
             - "'*'"
           ELASTICACHE_REDIS_ADDRESS: !If
@@ -1384,6 +1384,11 @@ Outputs:
   CloudFrontDistributionId:
     Description: 'CloudFront distribution ID'
     Value: !Ref FrontendDistribution
+  AllowOnlyCloudfrontOrigin:
+    Value: !If
+      - AllowOnlyCloudfrontOriginCondition
+      - 'yes'
+      - 'no'
 
   RestApiUrl:
     Description: 'API Gateway REST endpoint URL for Notes API - production stage'
@@ -1425,12 +1430,6 @@ Outputs:
       - CreateElasticacheRedisCluster
       - !GetAtt MyElasticacheRedisCluster.RedisEndpoint.Address
       - !Ref ExistingElasticacheRedisClusterAddress
-
-  # CreateNotesLambdaSG:
-  #   Value: !If
-  #     - CreateNotesLambdaSG
-  #     - 'yes'
-  #     - 'no'
 
   SQSQueueUrl:
     Description: 'URL of the created SQS Queue'

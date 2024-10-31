@@ -41,6 +41,7 @@ exports.handler = async (event) => {
         id: item.id,
         title: item.title,
         content: await decrypt(userDataKey, item.content),
+        archived: item.archived,
         createdAt: item.createdAt,
         updatedAt: item.updatedAt,
       }))

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { fetchAuthSession } from 'aws-amplify/auth';
-import { Plus, Save, Pencil, Trash2, ArrowLeft, List, Eye, HelpCircle, Search, X, Loader2 } from 'lucide-react';
+import { Plus, Save, Pencil, Trash2, ArrowLeft, List, Eye, HelpCircle, Search, X, Loader2, Archive, RefreshCw, ArrowRight } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ToastContainer, toast } from 'react-toastify';
@@ -24,12 +24,13 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl, userDisplayName }) => {
   const [searchInContent, setSearchInContent] = useState(true);
   const [caseSensitive, setCaseSensitive] = useState(false);
   const [isAccessingServer, setIsAccessingServer] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
 
   const timeoutIdRef = useRef(null);
   const socketRef = useRef(null);
 
   const fetchNotes = useCallback(
-    async (searchParams = prepareSearchParams(searchTerm, searchInTitle, searchInContent, caseSensitive)) => {
+    async (searchParams = prepareSearchParams(searchTerm, searchInTitle, searchInContent, caseSensitive, showArchived)) => {
       if (!restApiUrl || !userDisplayName) return;
 
       setIsAccessingServer(true);
@@ -40,14 +41,16 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl, userDisplayName }) => {
           params: searchParams,
         });
         if (response.data.length === 0) {
-          if (!searchParams.searchTerm) {
+          if (!searchParams.searchTerm && !showArchived) {
             setIsAddingNote(true);
             setShowSearchPane(false);
             setSearchTerm('');
           }
           setNotes([]);
         } else {
-          const sortedNotes = response.data.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+          const sortedNotes = response.data
+            .filter((note) => (showArchived ? note.archived : !note.archived))
+            .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
           setNotes(sortedNotes);
         }
       } catch (error) {
@@ -57,7 +60,7 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl, userDisplayName }) => {
         setIsAccessingServer(false);
       }
     },
-    [restApiUrl, userDisplayName, searchTerm, searchInTitle, searchInContent, caseSensitive]
+    [restApiUrl, userDisplayName, searchTerm, searchInTitle, searchInContent, caseSensitive, showArchived]
   );
 
   // WebSocket connection setup
@@ -72,7 +75,7 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl, userDisplayName }) => {
           isConnectingRef.current = false;
 
           socketRef.current.onopen = () => {
-            // console.log('WebSocket Connected');
+            console.log('WebSocket Connected');
           };
 
           socketRef.current.onmessage = (event) => {
@@ -92,15 +95,14 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl, userDisplayName }) => {
             setTimeout(() => {
               isConnectingRef.current = false;
               socketRef.current = null;
-              connectWebSocket();
-            }, 10000);
+            }, 3000);
           };
 
           socketRef.current.onclose = (event) => {
-            // console.log('WebSocket closed:', event.code, event.reason);
+            console.log('WebSocket closed:', event.code, event.reason);
             socketRef.current = null;
-            if (event.code === 1005) connectWebSocket();
-            else setTimeout(connectWebSocket, 1000);
+            // if (event.code === 1005) connectWebSocket();
+            // else setTimeout(connectWebSocket, 1000);
           };
         } catch (err) {
           console.error('Error creating WebSocket:', err);
@@ -114,6 +116,7 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl, userDisplayName }) => {
     // Cleanup function to close the WebSocket connection on unmount
     return () => {
       if (socketRef.current && !searchTerm) {
+        console.log('Cleanup function to close the WebSocket connection on unmount');
         socketRef.current.close();
         socketRef.current = null;
         isConnectingRef.current = false;
@@ -194,8 +197,34 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl, userDisplayName }) => {
     }
   };
 
+  const toggleArchiveStatus = async (note) => {
+    if (!userDisplayName) return;
+
+    setIsAccessingServer(true);
+    try {
+      const { tokens } = await fetchAuthSession();
+      await axios.put(
+        `${restApiUrl}/update/${note.id}`,
+        { ...note, archived: !note.archived },
+        { headers: { Authorization: `Bearer ${tokens.idToken}` } }
+      );
+      fetchNotes();
+    } catch (error) {
+      console.error('Error updating archive status:', error);
+      toast.error('Failed to update archive status');
+    } finally {
+      setIsAccessingServer(false);
+    }
+  };
+
   const deleteNote = async (id) => {
-    if (userDisplayName && window.confirm('Are you sure you want to delete this note?')) {
+    const noteToDelete = notes.find((note) => note.id === id);
+    if (!noteToDelete?.archived) {
+      toast.error('Only archived notes can be deleted');
+      return;
+    }
+
+    if (userDisplayName && window.confirm('Are you sure you want to permanently delete this archived note?')) {
       setIsAccessingServer(true);
       try {
         const { tokens } = await fetchAuthSession();
@@ -258,6 +287,109 @@ For more Markdown tips, check out a [Markdown Cheat Sheet](https://www.markdowng
     setCaseSensitive(false);
   };
 
+  const renderActionButtons = () => (
+    <div className='action-buttons'>
+      {!isAddingNote && (
+        <>
+          <button
+            onClick={() => setIsAddingNote(true)}
+            className={`icon-button ${notes.length === 0 && !searchTerm && !showArchived ? 'flash' : ''}`}
+            title='Add New Note'
+            disabled={showArchived}>
+            <Plus size={20} />
+            <span className='sr-only'>Add New Note</span>
+          </button>
+          {notes.length > 0 && (
+            <button onClick={toggleViewMode} className='icon-button' title={`Switch to ${viewMode === 'table' ? 'Preview' : 'Table'} View`}>
+              {<ArrowRight size={10} />}
+              {viewMode === 'table' ? <Eye size={20} /> : <List size={20} />}
+              <span className='sr-only'>Switch View</span>
+            </button>
+          )}
+          <button
+            onClick={() => setShowArchived(!showArchived)}
+            className={`icon-button ${showArchived ? 'active' : ''}`}
+            title={`Switch to ${showArchived ? 'Active' : 'Archived'} Notes`}>
+            <ArrowRight size={10} />
+            {showArchived ? <RefreshCw size={20} /> : <Archive size={20} />}
+            <span className='sr-only'>{showArchived ? 'Show Active Notes' : 'Show Archived Notes'}</span>
+          </button>
+          {(notes.length > 0 || searchTerm) && (
+            <button
+              onClick={toggleSearchPane}
+              className={`icon-button ${showSearchPane && 'search-open'} ${searchTerm && 'search-active'}`}
+              title='Toggle Search'>
+              <Search size={20} />
+              <span className='sr-only'>Toggle Search</span>
+            </button>
+          )}
+          <button onClick={toggleHelp} className='icon-button' title='Toggle Help'>
+            <HelpCircle size={20} />
+            <span className='sr-only'>Toggle Help</span>
+          </button>
+        </>
+      )}
+    </div>
+  );
+
+  const renderTableRow = (note) => (
+    <tr key={note.id}>
+      <td>{new Date(note.updatedAt).toLocaleString()}</td>
+      <td>{note.title}</td>
+      <td>{note.content.length > 100 ? note.content.substring(0, 100) + '...' : note.content}</td>
+      <td>
+        {!note.archived && (
+          <button onClick={() => startEditingNote(note)} className='icon-button' title='Edit Note'>
+            <Pencil size={20} />
+            <span className='sr-only'>Edit</span>
+          </button>
+        )}
+        <button onClick={() => toggleArchiveStatus(note)} className='icon-button' title={note.archived ? 'Restore Note' : 'Archive Note'}>
+          {note.archived ? <RefreshCw size={20} /> : <Archive size={20} />}
+          <span className='sr-only'>{note.archived ? 'Restore' : 'Archive'}</span>
+        </button>
+        {note.archived && (
+          <button onClick={() => deleteNote(note.id)} className='icon-button delete' title='Delete Note Permanently'>
+            <Trash2 size={20} />
+            <span className='sr-only'>Delete Permanently</span>
+          </button>
+        )}
+      </td>
+    </tr>
+  );
+
+  const renderNotePreview = (note) => (
+    <div key={note.id} className={`note-preview ${note.archived ? 'archived' : ''}`}>
+      <div className='note-preview-header'>
+        <span className='note-preview-date'>{new Date(note.updatedAt).toLocaleString()}</span>
+        <h2 className='note-preview-title' title={note.title.length > 50 ? note.title : undefined}>
+          {note.title.length > 50 ? note.title.substring(0, 50) + '..' : note.title}
+        </h2>
+        <div className='note-preview-actions'>
+          {!note.archived && (
+            <button onClick={() => startEditingNote(note)} className='icon-button' title='Edit Note'>
+              <Pencil size={20} />
+              <span className='sr-only'>Edit</span>
+            </button>
+          )}
+          <button onClick={() => toggleArchiveStatus(note)} className='icon-button' title={note.archived ? 'Restore Note' : 'Archive Note'}>
+            {note.archived ? <RefreshCw size={20} /> : <Archive size={20} />}
+            <span className='sr-only'>{note.archived ? 'Restore' : 'Archive'}</span>
+          </button>
+          {note.archived && (
+            <button onClick={() => deleteNote(note.id)} className='icon-button delete' title='Delete Note Permanently'>
+              <Trash2 size={20} />
+              <span className='sr-only'>Delete Permanently</span>
+            </button>
+          )}
+        </div>
+      </div>
+      <div className='note-preview-content'>
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{note.content}</ReactMarkdown>
+      </div>
+    </div>
+  );
+
   return (
     <div className={`CrudOperationsContainer ${isAccessingServer && !searchTerm ? 'CrudOperationsContainer--loading' : ''}`}>
       <ToastContainer />
@@ -265,36 +397,7 @@ For more Markdown tips, check out a [Markdown Cheat Sheet](https://www.markdowng
       <div className='CrudOperations'>
         {!editingNote && (
           <>
-            <div className='action-buttons'>
-              {!isAddingNote && (
-                <>
-                  <button
-                    onClick={() => setIsAddingNote(true)}
-                    className={`icon-button ${notes.length === 0 && !searchTerm ? 'flash' : ''}`}
-                    title='Add New Note'>
-                    <Plus size={20} />
-                    <span className='sr-only'>Add New Note</span>
-                  </button>
-                  <button onClick={toggleViewMode} className='icon-button' title={`Switch to ${viewMode === 'table' ? 'Preview' : 'Table'} View`}>
-                    {viewMode === 'table' ? <Eye size={20} /> : <List size={20} />}
-                    <span className='sr-only'>Switch View</span>
-                  </button>
-                  {(notes.length > 0 || searchTerm) && (
-                    <button
-                      onClick={toggleSearchPane}
-                      className={`icon-button ${showSearchPane && 'search-open'} ${searchTerm && 'search-active'}`}
-                      title='Toggle Search'>
-                      <Search size={20} />
-                      <span className='sr-only'>Toggle Search</span>
-                    </button>
-                  )}
-                  <button onClick={toggleHelp} className='icon-button' title='Toggle Help'>
-                    <HelpCircle size={20} />
-                    <span className='sr-only'>Toggle Help</span>
-                  </button>
-                </>
-              )}
-            </div>
+            {renderActionButtons()}
 
             {showSearchPane && (
               <div className='search-pane'>
@@ -388,64 +491,27 @@ For more Markdown tips, check out a [Markdown Cheat Sheet](https://www.markdowng
               <textarea value={editingContent} onChange={(e) => handleEditChange('content', e.target.value)} placeholder='Note content' />
             </div>
           </div>
-        ) : viewMode === 'table' ? (
-          <div className='table-container'>
-            <table>
-              <thead>
-                <tr>
-                  <th>Updated</th>
-                  <th>Title</th>
-                  <th>Content</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {notes.map((note) => (
-                  <tr key={note.id}>
-                    <td>{new Date(note.updatedAt).toLocaleString()}</td>
-                    <td>{note.title}</td>
-                    <td>{note.content.length > 100 ? note.content.substring(0, 100) + '...' : note.content}</td>
-                    <td>
-                      <button onClick={() => startEditingNote(note)} className='icon-button' title='Edit Note'>
-                        <Pencil size={20} />
-                        <span className='sr-only'>Edit</span>
-                      </button>
-                      <button onClick={() => deleteNote(note.id)} className='icon-button' title='Delete Note'>
-                        <Trash2 size={20} />
-                        <span className='sr-only'>Delete</span>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
         ) : (
-          <div className='preview-container'>
-            {notes.map((note) => (
-              <div key={note.id} className='note-preview'>
-                <div className='note-preview-header'>
-                  <span className='note-preview-date'>{new Date(note.updatedAt).toLocaleString()}</span>
-                  <h2 className='note-preview-title' title={note.title.length > 50 ? note.title : undefined}>
-                    {note.title.length > 50 ? note.title.substring(0, 50) + '..' : note.title}
-                  </h2>
-                  <div className='note-preview-actions'>
-                    <button onClick={() => startEditingNote(note)} className='icon-button' title='Edit Note'>
-                      <Pencil size={20} />
-                      <span className='sr-only'>Edit</span>
-                    </button>
-                    <button onClick={() => deleteNote(note.id)} className='icon-button' title='Delete Note'>
-                      <Trash2 size={20} />
-                      <span className='sr-only'>Delete</span>
-                    </button>
-                  </div>
-                </div>{' '}
-                <div className='note-preview-content'>
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{note.content}</ReactMarkdown>
-                </div>
+          <>
+            {viewMode === 'table' ? (
+              <div className='table-container'>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Updated</th>
+                      <th>Title</th>
+                      <th>Content</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>{notes.map((note) => renderTableRow(note))}</tbody>
+                </table>
               </div>
-            ))}
-          </div>
+            ) : (
+              <div className='preview-container'>{notes.map((note) => renderNotePreview(note))}</div>
+            )}
+            {notes.length === 0 && !isAccessingServer && <p className='no-notes-message'>{`No ${showArchived ? 'archived' : 'active'} notes!`}</p>}
+          </>
         )}
       </div>
     </div>
@@ -458,9 +524,17 @@ const LoadingSpinner = () => (
   </div>
 );
 
-function prepareSearchParams(searchTerm, searchInTitle, searchInContent, caseSensitive) {
-  let searchParams = {};
-  if (searchTerm) searchParams = { searchTerm, searchInTitle, searchInContent, caseSensitive };
+function prepareSearchParams(searchTerm, searchInTitle, searchInContent, caseSensitive, showArchived) {
+  let searchParams = { archived: showArchived };
+  if (searchTerm) {
+    searchParams = {
+      ...searchParams,
+      searchTerm,
+      searchInTitle,
+      searchInContent,
+      caseSensitive,
+    };
+  }
   return searchParams;
 }
 

@@ -553,6 +553,13 @@ td:nth-child(4) .icon-button {
   margin-bottom: 20px;
 }
 
+.no-notes-message {
+  font-size: 1rem;
+  font-weight: bolder;
+  letter-spacing: 2px;
+  color: darkred;
+}
+
 /* Help Styles */
 .help-content {
   background-color: #f8f8f8;
