@@ -77,7 +77,7 @@ if ($LASTEXITCODE -eq 0) {
 
         if ($isMainBranch) {
             $parameterOverrides += "StageName='prod'"
-            # $parameterOverrides += "AllowOnlyCloudfrontOrigin=true"
+            $parameterOverrides += "AllowOnlyCloudfrontOrigin=true"
         }
         else {
             # In feature branch, reuse the follwing resources in the main branch:
