@@ -83,7 +83,7 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl, userDisplayName }) => {
             try {
               const data = JSON.parse(event.data);
               if (data.command?.refresh) fetchNotes(); //TODO: In case this is an update from the current client, this fetch is redundant.
-              if (data.message) toast(data.message, { autoClose: Math.max(Math.min(data.message.length * 100, 6000), 3000) });
+              if (data.message) toast(data.message, { autoClose: Math.max(Math.min(data.message.length * 75, 6000), 2000) });
             } catch (err) {
               console.error('Error parsing message:', err);
             }
