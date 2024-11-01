@@ -105,6 +105,7 @@ async function testRedisConnectivity(redisParams) {
     if (keys.length === 0) {
       console.log('No keys found in Redis.');
     } else {
+      keys.sort();
       for (const key of keys) {
         if ((!key.includes(':') && redisParams.deleteUnnamed) || redisParams.deleteKeys?.includes(key)) {
           console.log(`Deleting key: ${key}`);
