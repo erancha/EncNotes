@@ -45,8 +45,6 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl }) => {
 
   const fetchNotes = useCallback(
     async (searchParams = prepareSearchParams(searchTerm, searchInTitle, searchInContent, caseSensitive, showArchived)) => {
-      if (!restApiUrl) return;
-
       setIsAccessingServer(true);
       try {
         const { tokens } = await fetchAuthSession();
@@ -54,18 +52,20 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl }) => {
           headers: { Authorization: `Bearer ${tokens.idToken}` },
           params: searchParams,
         });
-        if (response.data.length === 0) {
-          if (!searchParams.searchTerm && !showArchived) {
-            setIsAddingNote(true);
-            setShowSearchPane(false);
-            setSearchTerm('');
-          }
-          setNotes([]);
-        } else {
+        if (response.data.length > 0) {
           const sortedNotes = response.data
             .filter((note) => (showArchived ? note.archived : !note.archived))
             .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
           setNotes(sortedNotes);
+        } else {
+          setNotes([]);
+
+          // if there're no notes, and we're not during search, and we're in archive mode, switch automatically to adding a note:
+          if (!searchParams.searchTerm && !showArchived) {
+            setShowSearchPane(false);
+            setSearchTerm('');
+            setIsAddingNote(true);
+          }
         }
       } catch (error) {
         console.error('Error fetching notes:', error);
