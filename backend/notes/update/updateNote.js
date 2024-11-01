@@ -72,7 +72,7 @@ exports.handler = async (event) => {
         sqsParams.MessageBody = JSON.stringify({
           connectionId,
           command: { refresh: true },
-          message: `${archived === undefined ? 'Updated' : archived ? 'Archived' : 'Restored'} note : ${title}.`,
+          message: `A note was ${archived === undefined ? 'updated' : archived ? 'archived' : 'restored'} : ${title}.`,
         });
         await sqsClient.send(new SendMessageCommand(sqsParams));
       } catch (error) {

@@ -274,6 +274,19 @@ button:hover {
   color: #007bff;
 }
 
+.icon-button.archive {
+  color: gray;
+}
+.icon-button.restore {
+  color: green;
+}
+.icon-button.delete {
+  color: red;
+}
+.icon-button.active {
+  color: darkgreen;
+}
+
 .icon-button:hover {
   background-color: rgba(0, 123, 255, 0.1);
 }

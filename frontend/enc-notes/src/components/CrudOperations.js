@@ -7,7 +7,7 @@ import remarkGfm from 'remark-gfm';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-const CrudOperations = ({ restApiUrl, webSocketApiUrl, userDisplayName }) => {
+const CrudOperations = ({ restApiUrl, webSocketApiUrl }) => {
   const [notes, setNotes] = useState([]);
   const [newTitle, setNewTitle] = useState('');
   const [newNote, setNewNote] = useState('');
@@ -26,12 +26,26 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl, userDisplayName }) => {
   const [isAccessingServer, setIsAccessingServer] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
 
+  // fetching notes :
   const timeoutIdRef = useRef(null);
-  const socketRef = useRef(null);
+
+  function prepareSearchParams(searchTerm, searchInTitle, searchInContent, caseSensitive, showArchived) {
+    let searchParams = { archived: showArchived };
+    if (searchTerm) {
+      searchParams = {
+        ...searchParams,
+        searchTerm,
+        searchInTitle,
+        searchInContent,
+        caseSensitive,
+      };
+    }
+    return searchParams;
+  }
 
   const fetchNotes = useCallback(
     async (searchParams = prepareSearchParams(searchTerm, searchInTitle, searchInContent, caseSensitive, showArchived)) => {
-      if (!restApiUrl || !userDisplayName) return;
+      if (!restApiUrl) return;
 
       setIsAccessingServer(true);
       try {
@@ -60,69 +74,8 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl, userDisplayName }) => {
         setIsAccessingServer(false);
       }
     },
-    [restApiUrl, userDisplayName, searchTerm, searchInTitle, searchInContent, caseSensitive, showArchived]
+    [restApiUrl, searchTerm, searchInTitle, searchInContent, caseSensitive, showArchived]
   );
-
-  // WebSocket connection setup
-  const isConnectingRef = useRef(false);
-  useEffect(() => {
-    const connectWebSocket = async () => {
-      if (webSocketApiUrl && userDisplayName && !socketRef.current && !isConnectingRef.current) {
-        try {
-          isConnectingRef.current = true;
-          const { tokens } = await fetchAuthSession();
-          socketRef.current = new WebSocket(`${webSocketApiUrl}?token=${tokens.idToken}`);
-          isConnectingRef.current = false;
-
-          socketRef.current.onopen = () => {
-            console.log('WebSocket Connected');
-          };
-
-          socketRef.current.onmessage = (event) => {
-            // console.log('Received message:', event.data);
-            try {
-              const data = JSON.parse(event.data);
-              if (data.command?.refresh) fetchNotes(); //TODO: In case this is an update from the current client, this fetch is redundant.
-              if (data.message) toast(data.message, { autoClose: Math.max(Math.min(data.message.length * 75, 6000), 2000) });
-            } catch (err) {
-              console.error('Error parsing message:', err);
-            }
-          };
-
-          socketRef.current.onerror = (error) => {
-            console.error('WebSocket error:', error);
-            isConnectingRef.current = true;
-            setTimeout(() => {
-              isConnectingRef.current = false;
-              socketRef.current = null;
-            }, 3000);
-          };
-
-          socketRef.current.onclose = (event) => {
-            console.log('WebSocket closed:', event.code, event.reason);
-            socketRef.current = null;
-            // if (event.code === 1005) connectWebSocket();
-            // else setTimeout(connectWebSocket, 1000);
-          };
-        } catch (err) {
-          console.error('Error creating WebSocket:', err);
-          socketRef.current = null;
-        }
-      }
-    };
-
-    connectWebSocket();
-
-    // Cleanup function to close the WebSocket connection on unmount
-    return () => {
-      if (socketRef.current && !searchTerm) {
-        console.log('Cleanup function to close the WebSocket connection on unmount');
-        socketRef.current.close();
-        socketRef.current = null;
-        isConnectingRef.current = false;
-      }
-    };
-  }, [webSocketApiUrl, userDisplayName, fetchNotes, searchTerm]);
 
   const debouncedFetchNotes = useCallback(
     (searchParams) => {
@@ -138,11 +91,61 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl, userDisplayName }) => {
   );
 
   useEffect(() => {
-    if (userDisplayName) debouncedFetchNotes(prepareSearchParams(searchTerm, searchInTitle, searchInContent, caseSensitive));
-  }, [debouncedFetchNotes, userDisplayName, searchTerm, searchInTitle, searchInContent, caseSensitive]);
+    debouncedFetchNotes(prepareSearchParams(searchTerm, searchInTitle, searchInContent, caseSensitive));
+  }, [debouncedFetchNotes, searchTerm, searchInTitle, searchInContent, caseSensitive]);
 
+  // WebSocket connections :
+  const socketRef = useRef(null);
+  const lastMessage = useRef('');
+  useEffect(() => {
+    const connectWebSocket = async () => {
+      try {
+        const { tokens } = await fetchAuthSession();
+        socketRef.current = new WebSocket(`${webSocketApiUrl}?token=${tokens.idToken}`);
+
+        socketRef.current.onopen = () => {
+          console.log('WebSocket Connected');
+        };
+
+        socketRef.current.onmessage = (event) => {
+          // console.log('Received message:', event.data);
+          try {
+            const data = JSON.parse(event.data);
+            if (data.message && data.message !== lastMessage.current) {
+              if (data.command?.refresh) fetchNotes(); //TODO: In case this is an update from the current client, this fetch is redundant.
+              toast(data.message, { autoClose: Math.max(Math.min(data.message.length * 75, 6000), 2000) });
+              lastMessage.current = data.message;
+            }
+          } catch (err) {
+            console.error('Error parsing message:', err);
+          }
+        };
+
+        socketRef.current.onerror = (error) => {
+          console.error('WebSocket error:', error);
+          socketRef.current = null;
+        };
+
+        socketRef.current.onclose = (event) => {
+          console.log('WebSocket closed:', event.code, event.reason);
+          if (event.code === 1005) socketRef.current = null;
+          else
+            setTimeout(() => {
+              socketRef.current = null;
+            }, 1000);
+        };
+      } catch (err) {
+        console.error('Error creating WebSocket:', err);
+        socketRef.current = null;
+      }
+    };
+
+    if (!socketRef.current) connectWebSocket();
+  });
+
+  // adding, updating, archiving, restoring and deleting notes :
   const addNote = async () => {
-    if (!newTitle || !newNote || !userDisplayName) return;
+    if (!newTitle || !newNote) return;
 
     setIsAccessingServer(true);
     try {
@@ -174,7 +177,7 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl, userDisplayName }) => {
   };
 
   const updateNote = async () => {
-    if (!editingTitle || !editingContent || !userDisplayName || !editingNote) return;
+    if (!editingTitle || !editingContent || !editingNote) return;
 
     setIsAccessingServer(true);
     try {
@@ -197,9 +200,7 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl, userDisplayName }) => {
     }
   };
 
-  const toggleArchiveStatus = async (note) => {
-    if (!userDisplayName) return;
-
+  const toggleNoteArchiveStatus = async (note) => {
     setIsAccessingServer(true);
     try {
       const { tokens } = await fetchAuthSession();
@@ -224,7 +225,7 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl, userDisplayName }) => {
       return;
     }
 
-    if (userDisplayName && window.confirm('Are you sure you want to permanently delete this archived note?')) {
+    if (window.confirm('Are you sure you want to permanently delete this archived note?')) {
       setIsAccessingServer(true);
       try {
         const { tokens } = await fetchAuthSession();
@@ -308,7 +309,7 @@ For more Markdown tips, check out a [Markdown Cheat Sheet](https://www.markdowng
           )}
           <button
             onClick={() => setShowArchived(!showArchived)}
-            className={`icon-button ${showArchived ? 'active' : ''}`}
+            className={`icon-button ${showArchived ? 'active' : 'archive'}`}
             title={`Switch to ${showArchived ? 'Active' : 'Archived'} Notes`}>
             <ArrowRight size={10} />
             {showArchived ? <RefreshCw size={20} /> : <Archive size={20} />}
@@ -344,7 +345,7 @@ For more Markdown tips, check out a [Markdown Cheat Sheet](https://www.markdowng
             <span className='sr-only'>Edit</span>
           </button>
         )}
-        <button onClick={() => toggleArchiveStatus(note)} className='icon-button' title={note.archived ? 'Restore Note' : 'Archive Note'}>
+        <button onClick={() => toggleNoteArchiveStatus(note)} className='icon-button archive' title={note.archived ? 'Restore Note' : 'Archive Note'}>
           {note.archived ? <RefreshCw size={20} /> : <Archive size={20} />}
           <span className='sr-only'>{note.archived ? 'Restore' : 'Archive'}</span>
         </button>
@@ -372,7 +373,10 @@ For more Markdown tips, check out a [Markdown Cheat Sheet](https://www.markdowng
               <span className='sr-only'>Edit</span>
             </button>
           )}
-          <button onClick={() => toggleArchiveStatus(note)} className='icon-button' title={note.archived ? 'Restore Note' : 'Archive Note'}>
+          <button
+            onClick={() => toggleNoteArchiveStatus(note)}
+            className={`icon-button ${note.archived ? 'restore' : 'archive'}`}
+            title={note.archived ? 'Restore Note' : 'Archive Note'}>
             {note.archived ? <RefreshCw size={20} /> : <Archive size={20} />}
             <span className='sr-only'>{note.archived ? 'Restore' : 'Archive'}</span>
           </button>
@@ -390,9 +394,15 @@ For more Markdown tips, check out a [Markdown Cheat Sheet](https://www.markdowng
     </div>
   );
 
+  const LoadingSpinner = () => (
+    <div className='flex items-center justify-center w-full h-32'>
+      <Loader2 className='w-8 h-8 animate-spin text-blue-500 spinner' />
+    </div>
+  );
+
   return (
     <div className={`CrudOperationsContainer ${isAccessingServer && !searchTerm ? 'CrudOperationsContainer--loading' : ''}`}>
-      <ToastContainer />
+      <ToastContainer limit={1} />
       {isAccessingServer && !searchTerm && <LoadingSpinner />}
       <div className='CrudOperations'>
         {!editingNote && (
@@ -517,25 +527,5 @@ For more Markdown tips, check out a [Markdown Cheat Sheet](https://www.markdowng
     </div>
   );
 };
-
-const LoadingSpinner = () => (
-  <div className='flex items-center justify-center w-full h-32'>
-    <Loader2 className='w-8 h-8 animate-spin text-blue-500 spinner' />
-  </div>
-);
-
-function prepareSearchParams(searchTerm, searchInTitle, searchInContent, caseSensitive, showArchived) {
-  let searchParams = { archived: showArchived };
-  if (searchTerm) {
-    searchParams = {
-      ...searchParams,
-      searchTerm,
-      searchInTitle,
-      searchInContent,
-      caseSensitive,
-    };
-  }
-  return searchParams;
-}
 
 export default CrudOperations;

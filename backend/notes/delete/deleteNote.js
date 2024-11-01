@@ -42,7 +42,7 @@ exports.handler = async (event) => {
 
     for (const connectionId of connectionIds) {
       try {
-        sqsParams.MessageBody = JSON.stringify({ connectionId, command: { refresh: true }, message: `Deleted note : ${noteId}.` });
+        sqsParams.MessageBody = JSON.stringify({ connectionId, command: { refresh: true }, message: `A note was deleted : ${noteId}.` });
         await sqsClient.send(new SendMessageCommand(sqsParams));
       } catch (error) {
         console.error(error);
