@@ -146,7 +146,7 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl }) => {
 
   // adding, updating, archiving, restoring and deleting notes :
   const addNote = async () => {
-    if (!newTitle || !newNote) return;
+    if (!newTitle) return;
 
     setIsAccessingServer(true);
     try {
@@ -178,7 +178,7 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl }) => {
   };
 
   const updateNote = async () => {
-    if (!editingTitle || !editingContent || !editingNote) return;
+    if (!editingTitle || !editingNote) return;
 
     setIsAccessingServer(true);
     try {
@@ -417,7 +417,7 @@ For more Markdown tips, check out a [Markdown Cheat Sheet](https://www.markdowng
                     <ArrowLeft size={20} />
                     <span className='sr-only'>Cancel</span>
                   </button>
-                  {newTitle.trim() !== '' && newNote.trim() !== '' && (
+                  {newTitle.trim() !== '' && (
                     <button onClick={addNote} className='icon-button flash save-button' title='Save Note'>
                       <Save size={20} />
                       <span className='sr-only'>Save Note</span>
