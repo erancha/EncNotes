@@ -1,24 +1,32 @@
 const { KMSClient, GenerateDataKeyCommand } = require('@aws-sdk/client-kms');
 const { DynamoDBClient, QueryCommand } = require('@aws-sdk/client-dynamodb');
 const Redis = require('ioredis');
+const { v4: uuidv4 } = require('uuid');
 const { ApiGatewayManagementApiClient, PostToConnectionCommand } = require('@aws-sdk/client-apigatewaymanagementapi');
 const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
 
+const formatNumber = (number) => {
+  return new Intl.NumberFormat('en-US').format(number); // 'en-US' can be changed to any locale you prefer
+};
+
 // {
-//   "dynamodb": true,
-//   "kms": true,
+//   "dynamodb": false,
+//   "kms": false,
 //   "redisParams": {
 //     "test": true,
+//     "insertDurationSeconds": 0,
+//     "writersCount" : 5,
+//     "readersCount": 20,
 //     "deleteUnnamed": true,
 //     "deleteKeys": ["connections:23743842-4061-709b-44f8-4ef9a527509d"]
 //   },
-//   "websocketParams": {
-//     "test": false,
-//     "websocketUrl": "wss://2tjkvv6211.execute-api.eu-central-1.amazonaws.com/dev",
-//     "connectionIds": ["AUVnKcFPliACHaQ=", "AUVnHfvgliACFmA="]
-//   },
+////   "websocketParams": {
+////     "test": false,
+////     "websocketUrl": "wss://2tjkvv6211.execute-api.eu-central-1.amazonaws.com/dev",
+////     "connectionIds": ["AUVnKcFPliACHaQ=", "AUVnHfvgliACFmA="]
+////   },
 //   "sqsParams": {
-//     "test": true,
+//     "test": false,
 //     "connectionIds": ["AUVnKcFPliACHaQ="],
 //     "repeat": 2
 //   }
@@ -101,14 +109,18 @@ async function testRedisConnectivity(redisParams) {
     console.log(`testRedisConnectivity: ${redisAddress}`);
     const redisClient = new Redis(redisAddress);
 
+    if (redisParams.insertDurationSeconds > 0)
+      await simulateRedisLoad(redisClient, redisParams.insertDurationSeconds * 1000, redisParams.writersCount, redisParams.readersCount);
+
     const keys = await redisClient.keys('*'); // Get all keys from the Redis database
-    if (keys.length === 0) {
-      console.log('No keys found in Redis.');
-    } else {
+    const dbsize = await redisClient.dbsize();
+    console.log(`Retrieved ${formatNumber(keys.length)} keys${dbsize !== keys.length ? ` (!== dbsize${dbSize})` : ''}.`);
+    if (keys.length > 0) {
       keys.sort();
+      let deletedKeysCount = 0;
       for (const key of keys) {
-        if ((!key.includes(':') && redisParams.deleteUnnamed) || redisParams.deleteKeys?.includes(key)) {
-          console.log(`Deleting key: ${key}`);
+        if (key.includes('test:') || (!key.includes(':') && redisParams.deleteUnnamed) || redisParams.deleteKeys?.includes(key)) {
+          deletedKeysCount++;
           await redisClient.del(key);
         } else {
           const type = await redisClient.type(key); // Get the type of the key
@@ -123,6 +135,7 @@ async function testRedisConnectivity(redisParams) {
           }
         }
       }
+      console.log(`Deleted ${formatNumber(deletedKeysCount)} keys.`);
     }
 
     await redisClient.quit();
@@ -132,6 +145,98 @@ async function testRedisConnectivity(redisParams) {
     return false;
   }
 }
+
+async function simulateRedisLoad(redisClient, insertDurationMS, writersCount, readersCount) {
+  console.log(`simulateRedisLoad: Insert for ${formatNumber(insertDurationMS)} ms, ${writersCount} writers, ${readersCount} readers.`);
+
+  const keysToInsert = new Set();
+  let isInserting = true;
+
+  // Track metrics
+  const metrics = {
+    insertedKeys: 0,
+    readOperations: 0,
+    errors: 0,
+    startTime: Date.now(),
+  };
+
+  // Insert keys for the specified duration
+  const insertKeys = async () => {
+    try {
+      while (isInserting) {
+        const key = `test-${crypto.randomUUID()}`;
+        keysToInsert.add(key);
+        await redisClient.set(key, `value of ${key}`);
+        metrics.insertedKeys++;
+      }
+    } catch (error) {
+      metrics.errors++;
+      console.error('Error inserting keys:', error);
+    }
+  };
+
+  // Start multiple insert operations
+  const writers = Array.from({ length: writersCount }, () => insertKeys());
+
+  // Stop inserting after the specified duration
+  await new Promise((resolve) =>
+    setTimeout(() => {
+      isInserting = false;
+      resolve();
+    }, insertDurationMS)
+  );
+
+  // Wait for all insertions to complete
+  await Promise.all(writers);
+
+  console.log(`Inserted ${formatNumber(metrics.insertedKeys)} keys.`);
+
+  // Create reader threads
+  const readers = Array.from({ length: readersCount }, async (_, readerId) => {
+    const threadMetrics = {
+      startTime: Date.now(),
+      keysRead: 0,
+      errors: 0,
+    };
+
+    try {
+      // Convert Set to Array for iteration
+      const keys = Array.from(keysToInsert);
+
+      // Each reader reads all keys
+      for (const key of keys) {
+        await redisClient.get(key);
+        threadMetrics.keysRead++;
+        metrics.readOperations++;
+      }
+    } catch (error) {
+      threadMetrics.errors++;
+      metrics.errors++;
+      console.error(`Thread ${readerId} error:`, error);
+    }
+
+    const elapsedTime = Date.now() - threadMetrics.startTime;
+    console.log(`Reader ${readerId} completed in ${formatNumber(elapsedTime)}ms (read ${formatNumber(threadMetrics.keysRead)} keys).`);
+
+    return threadMetrics;
+  });
+
+  // Wait for all readers to complete
+  const readerResults = await Promise.all(readers);
+
+  // Calculate final metrics
+  const totalDuration = Date.now() - metrics.startTime;
+  const totalReads = readerResults.reduce((sum, t) => sum + t.keysRead, 0);
+
+  return {
+    duration: totalDuration,
+    insertedKeys: metrics.insertedKeys,
+    totalReads,
+    readsPerSecond: (totalReads / totalDuration) * 1000,
+    errors: metrics.errors,
+  };
+}
+// Live Tail > Add filter patterns: ?"keys." ?"keys)" ?" keys " ?testRedisConnectivity ?simulateRedisLoad
 
 //=============================================================================================================
 async function testWebSocketConnectivity(websocketParams) {
