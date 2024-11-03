@@ -41,7 +41,8 @@ exports.handler = async (event) => {
         id: item.id,
         title: item.title,
         content: await decrypt(userDataKey, item.content),
-        archived: item.archived,
+        ...(item.archived !== undefined && { archived: item.archived }), // Only include if defined
+        ...(item.unrestorable && { unrestorable: item.unrestorable }), // Only include if defined
         createdAt: item.createdAt,
         updatedAt: item.updatedAt,
       }))

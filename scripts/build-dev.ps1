@@ -66,13 +66,14 @@ if ($LASTEXITCODE -eq 0) {
             "SenderEmail=webcharm.tech@gmail.com",
             "GoogleClientId=$googleClientId",
             "GoogleClientSecret=$googleClientSecret",
-            "ExistingNotesTableName=ena-notes",
-            "ExistingUsersTableName=ena-users",
-            "ExistingNotesEncryptionKeyId=d0efc261-b71d-4f5c-9686-9876cc664243",
-            "ExistingUserPoolId=$EXISTING_USER_POOL_ID",
-            "ExistingCognitoDomain=ena-575491442067.auth.eu-central-1.amazoncognito.com",
-            "ExistingIdentityPoolId=eu-central-1:e9f848f2-a3ed-43f9-8ddb-833ca34233ba",
-            "EnableUserDataKeysCache=true"
+            "ExistingNotesTableName='ena-notes'",
+            "ExistingNotesTableStreamArn='arn:aws:dynamodb:eu-central-1:575491442067:table/ena-notes/stream/2024-11-02T23:23:36.905'",
+            "ExistingUsersTableName='ena-users'",
+            "ExistingNotesEncryptionKeyId='d0efc261-b71d-4f5c-9686-9876cc664243'",
+            "ExistingUserPoolId='$EXISTING_USER_POOL_ID'",
+            "ExistingCognitoDomain='ena-575491442067.auth.eu-central-1.amazoncognito.com'",
+            "ExistingIdentityPoolId='eu-central-1:e9f848f2-a3ed-43f9-8ddb-833ca34233ba'",
+            "EnableUserDataKeysCache='true'"
         )
 
         if ($isMainBranch) {

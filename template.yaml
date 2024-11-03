@@ -70,6 +70,9 @@ Parameters:
     Description: 'Name of an existing NotesTable (leave empty to create a new one)'
     Type: String
     Default: ''
+  ExistingNotesTableStreamArn:
+    Description: 'Arn of an existing NotesTable stream'
+    Type: String
   ExistingUsersTableName:
     Description: 'Name of an existing UsersTable (leave empty to create a new one)'
     Type: String
@@ -276,6 +279,92 @@ Resources:
       BillingMode: PAY_PER_REQUEST
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: true
+      StreamSpecification:
+        StreamViewType: OLD_IMAGE
+
+  # Lambda Function to process the stream from NotesTable
+  NotesStreamProcessor:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: notesStream.handler
+      Runtime: nodejs20.x
+      CodeUri: backend/notes/stream/
+      Layers:
+        - !Ref AwsSdkV3Layer
+      # Environment:
+      #   Variables:
+      #     NOTES_TABLE_NAME: !If [CreateNotesTable, !Ref NotesTable, !Ref ExistingNotesTableName]
+      VpcConfig:
+        SubnetIds:
+          - !If [CreatePrivateSubnet, !Ref MyPrivateSubnet, !Ref ExistingPrivateSubnetId]
+        SecurityGroupIds:
+          - !If [CreateNotesLambdaSG, !Ref NotesLambdaSG, !Ref ExistingNotesLambdaSGId]
+      Role: !GetAtt NotesStreamProcessorRole.Arn
+
+  # IAM Role for the Lambda NotesStreamProcessor
+  NotesStreamProcessorRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DynamoDBTableAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                Resource:
+                  - !If
+                    - CreateNotesTable
+                    - !GetAtt NotesTable.Arn
+                    - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${ExistingNotesTableName}'
+        - PolicyName: DynamoDBStreamAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetRecords
+                  - dynamodb:GetShardIterator
+                  - dynamodb:DescribeStream
+                  - dynamodb:ListStreams
+                Resource:
+                  - !If
+                    - CreateNotesTable
+                    - !GetAtt NotesTable.StreamArn
+                    - !Ref ExistingNotesTableStreamArn
+        - PolicyName: NetworkInterfaceAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'ec2:CreateNetworkInterface'
+                  - 'ec2:DescribeNetworkInterfaces'
+                  - 'ec2:DeleteNetworkInterface'
+                Resource: '*'
+
+  # Event Source Mapping from NotesTable to NotesStreamProcessor
+  NotesStreamEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 100
+      Enabled: true
+      EventSourceArn: !If
+        - CreateNotesTable
+        - !GetAtt NotesTable.StreamArn
+        - !Ref ExistingNotesTableStreamArn
+      FunctionName: !Ref NotesStreamProcessor
+      StartingPosition: LATEST
 
   UsersTable:
     Type: AWS::DynamoDB::Table

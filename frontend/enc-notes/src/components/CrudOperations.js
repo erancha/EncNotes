@@ -4,6 +4,7 @@ import { fetchAuthSession } from 'aws-amplify/auth';
 import { Plus, Save, Pencil, Trash2, ArrowLeft, List, Eye, HelpCircle, Search, X, Loader2, Archive, RefreshCw, ArrowRight } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { renderTableRow, renderNotePreview } from './MarkdownHighlighting';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -145,7 +146,7 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl }) => {
 
   // adding, updating, archiving, restoring and deleting notes :
   const addNote = async () => {
-    if (!newTitle || !newNote) return;
+    if (!newTitle) return;
 
     setIsAccessingServer(true);
     try {
@@ -177,7 +178,7 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl }) => {
   };
 
   const updateNote = async () => {
-    if (!editingTitle || !editingContent || !editingNote) return;
+    if (!editingTitle || !editingNote) return;
 
     setIsAccessingServer(true);
     try {
@@ -200,45 +201,33 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl }) => {
     }
   };
 
-  const toggleNoteArchiveStatus = async (note) => {
+  const restoreNote = async (note) => {
     setIsAccessingServer(true);
     try {
       const { tokens } = await fetchAuthSession();
-      await axios.put(
-        `${restApiUrl}/update/${note.id}`,
-        { ...note, archived: !note.archived },
-        { headers: { Authorization: `Bearer ${tokens.idToken}` } }
-      );
+      await axios.put(`${restApiUrl}/update/${note.id}`, { archived: false }, { headers: { Authorization: `Bearer ${tokens.idToken}` } });
       fetchNotes();
     } catch (error) {
-      console.error('Error updating archive status:', error);
-      toast.error('Failed to update archive status');
+      console.error('Error restoring a note:', error);
+      toast.error('Failed to restore a note');
     } finally {
       setIsAccessingServer(false);
     }
   };
 
   const deleteNote = async (id) => {
-    const noteToDelete = notes.find((note) => note.id === id);
-    if (!noteToDelete?.archived) {
-      toast.error('Only archived notes can be deleted');
-      return;
-    }
-
-    if (window.confirm('Are you sure you want to permanently delete this archived note?')) {
-      setIsAccessingServer(true);
-      try {
-        const { tokens } = await fetchAuthSession();
-        await axios.delete(`${restApiUrl}/delete/${id}`, {
-          headers: { Authorization: `Bearer ${tokens.idToken}` },
-        });
-        fetchNotes();
-      } catch (error) {
-        console.error('Error deleting note:', error);
-        toast.error('Failed to delete note');
-      } finally {
-        setIsAccessingServer(false);
-      }
+    setIsAccessingServer(true);
+    try {
+      const { tokens } = await fetchAuthSession();
+      await axios.delete(`${restApiUrl}/delete/${id}`, {
+        headers: { Authorization: `Bearer ${tokens.idToken}` },
+      });
+      fetchNotes();
+    } catch (error) {
+      console.error('Error deleting note:', error);
+      toast.error('Failed to delete note');
+    } finally {
+      setIsAccessingServer(false);
     }
   };
 
@@ -288,8 +277,8 @@ For more Markdown tips, check out a [Markdown Cheat Sheet](https://www.markdowng
     setCaseSensitive(false);
   };
 
-  const renderActionButtons = () => (
-    <div className='action-buttons'>
+  const renderHeaderButtons = () => (
+    <div className='header-buttons'>
       {!isAddingNote && (
         <>
           <button
@@ -333,72 +322,24 @@ For more Markdown tips, check out a [Markdown Cheat Sheet](https://www.markdowng
     </div>
   );
 
-  const renderTableRow = (note) => (
-    <tr key={note.id}>
-      <td>{new Date(note.updatedAt).toLocaleString()}</td>
-      <td>{note.title}</td>
-      <td>{note.content.length > 100 ? note.content.substring(0, 100) + '...' : note.content}</td>
-      <td>
-        {!note.archived && (
-          <button onClick={() => startEditingNote(note)} className='icon-button' title='Edit Note'>
-            <Pencil size={20} />
-            <span className='sr-only'>Edit</span>
-          </button>
-        )}
-        <button onClick={() => toggleNoteArchiveStatus(note)} className='icon-button archive' title={note.archived ? 'Restore Note' : 'Archive Note'}>
-          {note.archived ? <RefreshCw size={20} /> : <Archive size={20} />}
-          <span className='sr-only'>{note.archived ? 'Restore' : 'Archive'}</span>
-        </button>
-        {note.archived && (
-          <button onClick={() => deleteNote(note.id)} className='icon-button delete' title='Delete Note Permanently'>
-            <Trash2 size={20} />
-            <span className='sr-only'>Delete Permanently</span>
-          </button>
-        )}
-      </td>
-    </tr>
-  );
-
-  const renderNotePreview = (note) => (
-    <div key={note.id} className={`note-preview ${note.archived ? 'archived' : ''}`}>
-      <div className='note-preview-header'>
-        <span className='note-preview-date'>{new Date(note.updatedAt).toLocaleString()}</span>
-        <h2 className='note-preview-title' title={note.title.length > 50 ? note.title : undefined}>
-          {note.title.length > 50 ? note.title.substring(0, 50) + '..' : note.title}
-        </h2>
-        <div className='note-preview-actions'>
-          {!note.archived && (
-            <button onClick={() => startEditingNote(note)} className='icon-button' title='Edit Note'>
-              <Pencil size={20} />
-              <span className='sr-only'>Edit</span>
-            </button>
-          )}
-          <button
-            onClick={() => toggleNoteArchiveStatus(note)}
-            className={`icon-button ${note.archived ? 'restore' : 'archive'}`}
-            title={note.archived ? 'Restore Note' : 'Archive Note'}>
-            {note.archived ? <RefreshCw size={20} /> : <Archive size={20} />}
-            <span className='sr-only'>{note.archived ? 'Restore' : 'Archive'}</span>
-          </button>
-          {note.archived && (
-            <button onClick={() => deleteNote(note.id)} className='icon-button delete' title='Delete Note Permanently'>
-              <Trash2 size={20} />
-              <span className='sr-only'>Delete Permanently</span>
-            </button>
-          )}
-        </div>
-      </div>
-      <div className='note-preview-content'>
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{note.content}</ReactMarkdown>
-      </div>
-    </div>
-  );
-
   const LoadingSpinner = () => (
     <div className='flex items-center justify-center w-full h-32'>
       <Loader2 className='w-8 h-8 animate-spin text-blue-500 spinner' />
     </div>
   );
+
+  const actions = {
+    startEditingNote,
+    restoreNote,
+    deleteNote,
+  };
+
+  const icons = {
+    Pencil,
+    RefreshCw,
+    Archive,
+    Trash2,
+  };
 
   return (
     <div className={`CrudOperationsContainer ${isAccessingServer && !searchTerm ? 'CrudOperationsContainer--loading' : ''}`}>
@@ -407,7 +348,7 @@ For more Markdown tips, check out a [Markdown Cheat Sheet](https://www.markdowng
       <div className='CrudOperations'>
         {!editingNote && (
           <>
-            {renderActionButtons()}
+            {renderHeaderButtons()}
 
             {showSearchPane && (
               <div className='search-pane'>
@@ -464,7 +405,7 @@ For more Markdown tips, check out a [Markdown Cheat Sheet](https://www.markdowng
                     <ArrowLeft size={20} />
                     <span className='sr-only'>Cancel</span>
                   </button>
-                  {newTitle.trim() !== '' && newNote.trim() !== '' && (
+                  {newTitle.trim() !== '' && (
                     <button onClick={addNote} className='icon-button flash save-button' title='Save Note'>
                       <Save size={20} />
                       <span className='sr-only'>Save Note</span>
@@ -514,11 +455,11 @@ For more Markdown tips, check out a [Markdown Cheat Sheet](https://www.markdowng
                       <th>Actions</th>
                     </tr>
                   </thead>
-                  <tbody>{notes.map((note) => renderTableRow(note))}</tbody>
+                  <tbody>{notes.map((note) => renderTableRow(note, searchTerm, caseSensitive, actions, icons))}</tbody>
                 </table>
               </div>
             ) : (
-              <div className='preview-container'>{notes.map((note) => renderNotePreview(note))}</div>
+              <div className='preview-container'>{notes.map((note) => renderNotePreview(note, searchTerm, caseSensitive, actions, icons))}</div>
             )}
             {notes.length === 0 && !isAccessingServer && <p className='no-notes-message'>{`No ${showArchived ? 'archived' : 'active'} notes!`}</p>}
           </>

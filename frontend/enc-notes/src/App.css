@@ -281,7 +281,7 @@ button:hover {
   color: green;
 }
 .icon-button.delete {
-  color: red;
+  color: darkred;
 }
 .icon-button.active {
   color: darkgreen;
@@ -399,7 +399,6 @@ th:nth-child(1), td:nth-child(1) { width: 20%; }
 th:nth-child(2), td:nth-child(2) { width: 35%; }
 th:nth-child(3), td:nth-child(3) { width: 35%; }
 th:nth-child(4), td:nth-child(4) { 
-  width: 10%; 
   white-space: nowrap;
   text-align: center;
 }
@@ -559,17 +558,19 @@ td:nth-child(4) .icon-button {
 }
 
 /* Action Buttons */
-.action-buttons {
+.header-buttons {
   display: flex;
   justify-content: center;
   gap: 10px;
   margin-bottom: 20px;
 }
+.action-buttons {
+}
 
 .no-notes-message {
-  font-size: 1rem;
-  font-weight: bolder;
-  letter-spacing: 2px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  letter-spacing: 3px;
   color: darkred;
 }
 
@@ -770,7 +771,7 @@ td:nth-child(4) .icon-button {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 80px;
+    max-width: 90px;
   }
 
   .note-preview-title {
