@@ -281,14 +281,16 @@ For more Markdown tips, check out a [Markdown Cheat Sheet](https://www.markdowng
     <div className='header-buttons'>
       {!isAddingNote && (
         <>
-          <button
-            onClick={() => setIsAddingNote(true)}
-            className={`icon-button ${notes.length === 0 && !searchTerm && !showArchived ? 'flash' : ''}`}
-            title='Add New Note'
-            disabled={showArchived}>
-            <Plus size={20} />
-            <span className='sr-only'>Add New Note</span>
-          </button>
+          {!showArchived && (
+            <button
+              onClick={() => setIsAddingNote(true)}
+              className={`icon-button ${notes.length === 0 && !searchTerm && !showArchived ? 'flash' : ''}`}
+              title='Add New Note'
+              disabled={showArchived}>
+              <Plus size={20} />
+              <span className='sr-only'>Add New Note</span>
+            </button>
+          )}
           {notes.length > 0 && (
             <button onClick={toggleViewMode} className='icon-button' title={`Switch to ${viewMode === 'table' ? 'Preview' : 'Table'} View`}>
               {<ArrowRight size={10} />}

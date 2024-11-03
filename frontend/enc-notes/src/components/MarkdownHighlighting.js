@@ -143,9 +143,11 @@ const createMarkdownComponents = (searchTerm, caseSensitive) => {
 const MarkdownWithHighlight = ({ content, searchTerm, caseSensitive }) => {
   const components = createMarkdownComponents(searchTerm, caseSensitive);
   return (
-    <ReactMarkdown components={components} remarkPlugins={[remarkGfm]}>
-      {content}
-    </ReactMarkdown>
+    <div className='markdown'>
+      <ReactMarkdown components={components} remarkPlugins={[remarkGfm]}>
+        {content}
+      </ReactMarkdown>
+    </div>
   );
 };
 

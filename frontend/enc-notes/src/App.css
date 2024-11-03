@@ -519,8 +519,12 @@ td:nth-child(4) .icon-button {
 }
 
 .note-preview-content {
-  padding: 15px;
+  padding: 10px;
   text-align: left;
+}
+
+.markdown p {
+  margin-top: 0;
 }
 
 /* Markdown Content Styles */
