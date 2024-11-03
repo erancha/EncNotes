@@ -278,7 +278,7 @@ For more Markdown tips, check out a [Markdown Cheat Sheet](https://www.markdowng
   };
 
   const renderHeaderButtons = () => (
-    <div className='action-buttons'>
+    <div className='header-buttons'>
       {!isAddingNote && (
         <>
           <button
