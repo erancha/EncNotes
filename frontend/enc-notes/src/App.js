@@ -88,8 +88,8 @@ function App() {
               </a>
             </div>
 
-            <a href='https://lucid.app/publicSegments/view/a21d5788-c41a-450a-8cd1-b38196f169c4/image.jpeg' target='_blank' rel='noopener noreferrer'>
-              <img src='https://lucid.app/publicSegments/view/a21d5788-c41a-450a-8cd1-b38196f169c4/image.jpeg' alt='No User Authenticated' />
+            <a href='https://lucid.app/publicSegments/view/51fb6369-9f6c-4b20-8c75-bc90b2b16a49/image.jpeg' target='_blank' rel='noopener noreferrer'>
+              <img src='https://lucid.app/publicSegments/view/51fb6369-9f6c-4b20-8c75-bc90b2b16a49/image.jpeg' alt='No User Authenticated' />
             </a>
           </div>
         )}

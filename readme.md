@@ -6,7 +6,7 @@ AWS-based web application to manage encrypted notes. The application allows auth
 
 ## 2. Architecture Components
 
-![Architecture diagram](https://lucid.app/publicSegments/view/a21d5788-c41a-450a-8cd1-b38196f169c4/image.jpeg)
+![Architecture diagram](https://lucid.app/publicSegments/view/51fb6369-9f6c-4b20-8c75-bc90b2b16a49/image.jpeg)
 
 ### 2.1 Frontend
 
