@@ -615,8 +615,7 @@ td:nth-child(4) .icon-button {
   padding: 10px;
   background-color: #f0f0f0;
   border-radius: 4px;
-  animation: borderAnimation 1.5s forwards 3; /* Start the animation */
-  border-radius: 5px;
+  animation: borderAnimation 1s forwards 2;
 }
 
 .search-pane input[type="text"] {
