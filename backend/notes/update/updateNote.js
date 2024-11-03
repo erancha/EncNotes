@@ -27,7 +27,7 @@ exports.handler = async (event) => {
     const { title, content, archived } = requestBody;
 
     let updateCommand;
-    if (archived === undefined) {
+    if (title) {
       // update a note:
       const userDataKey = await getUserDataKey(event.requestContext.authorizer.claims.sub);
       updateCommand = new UpdateCommand({
@@ -42,7 +42,7 @@ exports.handler = async (event) => {
         ReturnValues: 'ALL_NEW',
       });
     } else {
-      // archive or restore a note:
+      // restore a note:
       updateCommand = new UpdateCommand({
         TableName: process.env.NOTES_TABLE_NAME,
         Key: { id: noteId },
@@ -72,7 +72,7 @@ exports.handler = async (event) => {
         sqsParams.MessageBody = JSON.stringify({
           connectionId,
           command: { refresh: true },
-          message: `A note was ${archived === undefined ? 'updated' : archived ? 'archived' : 'restored'} : ${title}.`,
+          message: title ? `A note was updated : ${title}.` : `A note was restored : ${noteId}.`,
         });
         await sqsClient.send(new SendMessageCommand(sqsParams));
       } catch (error) {

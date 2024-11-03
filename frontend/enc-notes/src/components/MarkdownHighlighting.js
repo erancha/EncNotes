@@ -2,6 +2,16 @@ import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
+const options = {
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  year: 'numeric',
+  month: 'numeric',
+  day: 'numeric',
+  hour12: false, // This ensures 24-hour format
+};
+
 // Highlight component that preserves formatting
 const Highlight = ({ children, searchTerm = '', caseSensitive = false }) => {
   if (!searchTerm) return children;
@@ -141,12 +151,11 @@ const MarkdownWithHighlight = ({ content, searchTerm, caseSensitive }) => {
 
 // Modified rendering functions with preserved formatting
 const renderTableRow = (note, searchTerm, caseSensitive, actions, icons) => {
-  const { Pencil, RefreshCw, Archive, Trash2 } = icons;
-  const { startEditingNote, toggleNoteArchiveStatus, deleteNote } = actions;
+  const { startEditingNote, restoreNote, deleteNote } = actions;
 
   return (
     <tr key={note.id}>
-      <td>{new Date(note.updatedAt).toLocaleString()}</td>
+      <td>{new Date(note.updatedAt).toLocaleString('en-GB', options)}</td>
       <td>
         <Highlight searchTerm={searchTerm} caseSensitive={caseSensitive}>
           {note.title}
@@ -160,66 +169,59 @@ const renderTableRow = (note, searchTerm, caseSensitive, actions, icons) => {
         />
       </td>
       <td className='action-buttons'>
-        {!note.archived && (
-          <button onClick={() => startEditingNote(note)} className='icon-button' title='Edit Note'>
-            <Pencil size={20} />
-            <span className='sr-only'>Edit</span>
-          </button>
-        )}
-        <button onClick={() => toggleNoteArchiveStatus(note)} className='icon-button archive' title={note.archived ? 'Restore Note' : 'Archive Note'}>
-          {note.archived ? <RefreshCw size={20} /> : <Archive size={20} />}
-          <span className='sr-only'>{note.archived ? 'Restore' : 'Archive'}</span>
-        </button>
-        {note.archived && (
-          <button onClick={() => deleteNote(note.id)} className='icon-button delete' title='Delete Note Permanently'>
-            <Trash2 size={20} />
-            <span className='sr-only'>Delete Permanently</span>
-          </button>
-        )}
+        <NoteActionButtons note={note} startEditingNote={startEditingNote} restoreNote={restoreNote} deleteNote={deleteNote} icons={icons} />{' '}
       </td>
     </tr>
   );
 };
 
 const renderNotePreview = (note, searchTerm, caseSensitive, actions, icons) => {
-  const { Pencil, RefreshCw, Archive, Trash2 } = icons;
-  const { startEditingNote, toggleNoteArchiveStatus, deleteNote } = actions;
+  const { startEditingNote, restoreNote, deleteNote } = actions;
 
   return (
     <div key={note.id} className={`note-preview ${note.archived ? 'archived' : ''}`}>
       <div className='note-preview-header'>
-        <span className='note-preview-date'>{new Date(note.updatedAt).toLocaleString()}</span>
+        <span className='note-preview-date'>{new Date(note.updatedAt).toLocaleString('en-GB', options)}</span>
         <h2 className='note-preview-title' title={note.title.length > 50 ? note.title : undefined}>
           <Highlight searchTerm={searchTerm} caseSensitive={caseSensitive}>
             {note.title.length > 50 ? note.title.substring(0, 50) + '..' : note.title}
           </Highlight>
         </h2>
         <div className='note-preview-actions'>
-          {!note.archived && (
-            <button onClick={() => startEditingNote(note)} className='icon-button' title='Edit Note'>
-              <Pencil size={20} />
-              <span className='sr-only'>Edit</span>
-            </button>
-          )}
-          <button
-            onClick={() => toggleNoteArchiveStatus(note)}
-            className={`icon-button ${note.archived ? 'restore' : 'archive'}`}
-            title={note.archived ? 'Restore Note' : 'Archive Note'}>
-            {note.archived ? <RefreshCw size={20} /> : <Archive size={20} />}
-            <span className='sr-only'>{note.archived ? 'Restore' : 'Archive'}</span>
-          </button>
-          {note.archived && (
-            <button onClick={() => deleteNote(note.id)} className='icon-button delete' title='Delete Note Permanently'>
-              <Trash2 size={20} />
-              <span className='sr-only'>Delete Permanently</span>
-            </button>
-          )}
+          <NoteActionButtons note={note} startEditingNote={startEditingNote} restoreNote={restoreNote} deleteNote={deleteNote} icons={icons} />{' '}
         </div>
       </div>
       <div className='note-preview-content'>
         <MarkdownWithHighlight content={note.content} searchTerm={searchTerm} caseSensitive={caseSensitive} />
       </div>
     </div>
+  );
+};
+
+const NoteActionButtons = ({ note, startEditingNote, restoreNote, deleteNote, icons }) => {
+  const { Pencil, RefreshCw, Trash2 } = icons;
+  return (
+    <>
+      {!note.archived ? (
+        <>
+          <button onClick={() => startEditingNote(note)} className='icon-button' title='Edit Note'>
+            <Pencil size={20} />
+            <span className='sr-only'>Edit</span>
+          </button>
+          <button onClick={() => deleteNote(note.id)} className='icon-button delete' title='Delete Note'>
+            <Trash2 size={20} />
+            <span className='sr-only'>Delete</span>
+          </button>
+        </>
+      ) : (
+        !note.unrestorable && (
+          <button onClick={() => restoreNote(note)} className='icon-button restore' title='Restore Note'>
+            <RefreshCw size={20} />
+            <span className='sr-only'>Restore</span>
+          </button>
+        )
+      )}
+    </>
   );
 };
 

@@ -28,23 +28,23 @@ exports.handler = async (event) => {
     const { title, content } = requestBody;
 
     const noteId = crypto.randomUUID();
-    const timestamp = new Date().toISOString();
+    const currentTimestamp = new Date().toISOString();
 
     const currentUserId = event.requestContext.authorizer.claims.sub;
     const userDataKey = await getUserDataKey(currentUserId);
-    const params = {
-      TableName: process.env.NOTES_TABLE_NAME,
-      Item: {
-        id: noteId,
-        userId: currentUserId,
-        title,
-        content: await encrypt(userDataKey, content),
-        createdAt: timestamp,
-        updatedAt: timestamp,
-      },
-    };
-
-    await docClient.send(new PutCommand(params));
+    await docClient.send(
+      new PutCommand({
+        TableName: process.env.NOTES_TABLE_NAME,
+        Item: {
+          id: noteId,
+          userId: currentUserId,
+          title,
+          content: await encrypt(userDataKey, content),
+          createdAt: currentTimestamp,
+          updatedAt: currentTimestamp,
+        },
+      })
+    );
 
     // handle connected devices of the current user:
     const redisClient = new Redis(process.env.ELASTICACHE_REDIS_ADDRESS);

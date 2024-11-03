@@ -201,45 +201,33 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl }) => {
     }
   };
 
-  const toggleNoteArchiveStatus = async (note) => {
+  const restoreNote = async (note) => {
     setIsAccessingServer(true);
     try {
       const { tokens } = await fetchAuthSession();
-      await axios.put(
-        `${restApiUrl}/update/${note.id}`,
-        { ...note, archived: !note.archived },
-        { headers: { Authorization: `Bearer ${tokens.idToken}` } }
-      );
+      await axios.put(`${restApiUrl}/update/${note.id}`, { archived: false }, { headers: { Authorization: `Bearer ${tokens.idToken}` } });
       fetchNotes();
     } catch (error) {
-      console.error('Error updating archive status:', error);
-      toast.error('Failed to update archive status');
+      console.error('Error restoring a note:', error);
+      toast.error('Failed to restore a note');
     } finally {
       setIsAccessingServer(false);
     }
   };
 
   const deleteNote = async (id) => {
-    const noteToDelete = notes.find((note) => note.id === id);
-    if (!noteToDelete?.archived) {
-      toast.error('Only archived notes can be deleted');
-      return;
-    }
-
-    if (window.confirm('Are you sure you want to permanently delete this archived note?')) {
-      setIsAccessingServer(true);
-      try {
-        const { tokens } = await fetchAuthSession();
-        await axios.delete(`${restApiUrl}/delete/${id}`, {
-          headers: { Authorization: `Bearer ${tokens.idToken}` },
-        });
-        fetchNotes();
-      } catch (error) {
-        console.error('Error deleting note:', error);
-        toast.error('Failed to delete note');
-      } finally {
-        setIsAccessingServer(false);
-      }
+    setIsAccessingServer(true);
+    try {
+      const { tokens } = await fetchAuthSession();
+      await axios.delete(`${restApiUrl}/delete/${id}`, {
+        headers: { Authorization: `Bearer ${tokens.idToken}` },
+      });
+      fetchNotes();
+    } catch (error) {
+      console.error('Error deleting note:', error);
+      toast.error('Failed to delete note');
+    } finally {
+      setIsAccessingServer(false);
     }
   };
 
@@ -289,7 +277,7 @@ For more Markdown tips, check out a [Markdown Cheat Sheet](https://www.markdowng
     setCaseSensitive(false);
   };
 
-  const renderActionButtons = () => (
+  const renderHeaderButtons = () => (
     <div className='action-buttons'>
       {!isAddingNote && (
         <>
@@ -342,7 +330,7 @@ For more Markdown tips, check out a [Markdown Cheat Sheet](https://www.markdowng
 
   const actions = {
     startEditingNote,
-    toggleNoteArchiveStatus,
+    restoreNote,
     deleteNote,
   };
 
@@ -360,7 +348,7 @@ For more Markdown tips, check out a [Markdown Cheat Sheet](https://www.markdowng
       <div className='CrudOperations'>
         {!editingNote && (
           <>
-            {renderActionButtons()}
+            {renderHeaderButtons()}
 
             {showSearchPane && (
               <div className='search-pane'>
