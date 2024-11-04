@@ -1,10 +1,10 @@
 $isMainBranch = .\common-constants.ps1
-Set-Variable -Name 'TEMPLATE_FILE' -Value '..\template.yaml' -Option Constant 
+Set-Variable -Name 'TEMPLATE_FILE' -Value '.\template.yaml' -Option Constant 
 
 $startTime = Get-Date
 
 Write-Output "`n$(Get-Date -Format 'HH:mm:ss') Validating the SAM template .."
-# sam validate --template-file $TEMPLATE_FILE # --lint | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() }
+sam validate --template-file $TEMPLATE_FILE # --lint | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() }
 if ($LASTEXITCODE -eq 0) {
     Write-Output "`n$(Get-Date -Format 'HH:mm:ss') Starting a build, stack ${STACK_NAME} .."
 
@@ -12,23 +12,23 @@ if ($LASTEXITCODE -eq 0) {
 
     $projectFolder = (Get-Location).Path + "/.."
 
-    # Set-Location "${projectFolder}/backend/layers/jsonwebtoken/nodejs/"
-    # npm install
-    # Set-Location ..
-    # Compress-Archive -Update -Path * -DestinationPath ../jsonwebtoken-layer.zip
+    Set-Location "${projectFolder}/backend/layers/jsonwebtoken/nodejs/"
+    npm install
+    Set-Location ..
+    Compress-Archive -Update -Path * -DestinationPath ../jsonwebtoken-layer.zip
 
-    # Set-Location "${projectFolder}/backend/notes/layers/encryption/"
-    # Compress-Archive -Update -Path *.js -DestinationPath ../notes-encryption-layer.zip
+    Set-Location "${projectFolder}/backend/notes/layers/encryption/"
+    Compress-Archive -Update -Path *.js -DestinationPath ../notes-encryption-layer.zip
 
-    # Set-Location "${projectFolder}/backend/layers/awssdkv3/nodejs/"
-    # npm install
-    # Set-Location ..
-    # Compress-Archive -Update -Path * -DestinationPath ../awssdkv3-layer.zip
+    Set-Location "${projectFolder}/backend/layers/awssdkv3/nodejs/"
+    npm install
+    Set-Location ..
+    Compress-Archive -Update -Path * -DestinationPath ../awssdkv3-layer.zip
 
-    # Set-Location "${projectFolder}/backend/layers/ioredis/nodejs/"
-    # npm install
-    # Set-Location ..
-    # Compress-Archive -Update -Path * -DestinationPath ../ioredis-layer.zip
+    Set-Location "${projectFolder}/backend/layers/ioredis/nodejs/"
+    npm install
+    Set-Location ..
+    Compress-Archive -Update -Path * -DestinationPath ../ioredis-layer.zip
 
     Set-Location "${projectFolder}/scripts/"
 
