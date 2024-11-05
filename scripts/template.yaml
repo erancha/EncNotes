@@ -240,7 +240,7 @@ Resources:
         - Key: Name
           Value: !Sub '${AWS::StackName}-RTB'
 
-  MySubnetRouteTableAssociation:
+  AttachMyPrivateSubnetToRTB:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Condition: CreateRouteTable
     Properties:

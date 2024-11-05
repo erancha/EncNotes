@@ -33,7 +33,7 @@ if ($LASTEXITCODE -eq 0) {
     Set-Location "${projectFolder}/scripts/"
 
     Write-Output "`n$(Get-Date -Format 'HH:mm:ss') sam build --template-file $TEMPLATE_FILE ..`n"
-    sam build --template-file $TEMPLATE_FILE
+    sam build --template-file $TEMPLATE_FILE # > $null
     if ($LASTEXITCODE -eq 0) {
         $endTime = Get-Date
         $elapsedTime = [math]::Round(($endTime - $startTime).TotalSeconds)
@@ -119,7 +119,8 @@ if ($LASTEXITCODE -eq 0) {
             $redirect_sign_in = "http://localhost:3000" # /callback
             $redirect_sign_out = "http://localhost:3000" # /logout
            
-            .\generate-config-content.ps1   -stack_outputs $stack_outputs `
+            .\generate-config-content.ps1 `
+                -stack_outputs $stack_outputs `
                 -rest_api_url $rest_api_url `
                 -websocket_api_url $websocket_api_url `
                 -backend_build_time `
