@@ -240,7 +240,7 @@ Resources:
         - Key: Name
           Value: !Sub '${AWS::StackName}-RTB'
 
-  AssociateMyPrivateSubnetToRTB:
+  MySubnetRouteTableAssociation: # AssociateMyPrivateSubnetToRTB:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Condition: CreateRouteTable
     Properties:
@@ -288,7 +288,7 @@ Resources:
     Properties:
       Handler: notesStream.handler
       Runtime: nodejs20.x
-      CodeUri: backend/notes/stream/
+      CodeUri: ../backend/notes/stream/
       Layers:
         - !Ref AwsSdkV3Layer
       # Environment:
@@ -841,37 +841,37 @@ Resources:
   CorsHeadersLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
-      ContentUri: backend/layers/corsHeaders/
+      ContentUri: ../backend/layers/corsHeaders/
       CompatibleRuntimes:
         - nodejs20.x
 
   jsonwebtokenLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
-      ContentUri: backend/layers/jsonwebtoken-layer.zip
+      ContentUri: ../backend/layers/jsonwebtoken-layer.zip
       CompatibleRuntimes:
         - nodejs20.x
 
   AwsSdkV3Layer:
-    Type: AWS::Lambda::LayerVersion
+    Type: AWS::Serverless::LayerVersion
     Properties:
       Description: AWS SDK v3 Layer
-      Content: backend/layers/awssdkv3-layer.zip
+      ContentUri: ../backend/layers/awssdkv3-layer.zip
       CompatibleRuntimes:
         - nodejs20.x
 
   IoredisLayer:
-    Type: AWS::Lambda::LayerVersion
+    Type: AWS::Serverless::LayerVersion
     Properties:
       Description: ioredis Layer
-      Content: backend/layers/ioredis-layer.zip
+      ContentUri: ../backend/layers/ioredis-layer.zip
       CompatibleRuntimes:
         - nodejs20.x
 
   NotesEncryptionLayer:
     Type: AWS::Serverless::LayerVersion
     Properties:
-      ContentUri: backend/notes/layers/encryption
+      ContentUri: ../backend/notes/layers/encryption
       CompatibleRuntimes:
         - nodejs20.x
       Description: Layer for encryption and decryption using KMS DEKs, saving the encrypted DEKs in DynamoDB, and optionally caching plaintext DEKs in Redis.
@@ -882,7 +882,7 @@ Resources:
   ListNotesFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: backend/notes/list/
+      CodeUri: ../backend/notes/list/
       Handler: listNotes.handler
       Runtime: nodejs20.x
       Layers:
@@ -928,7 +928,7 @@ Resources:
   AddNoteFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: backend/notes/add/
+      CodeUri: ../backend/notes/add/
       Handler: addNote.handler
       Runtime: nodejs20.x
       Layers:
@@ -973,7 +973,7 @@ Resources:
   UpdateNoteFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: backend/notes/update/
+      CodeUri: ../backend/notes/update/
       Handler: updateNote.handler
       Runtime: nodejs20.x
       Layers:
@@ -1018,7 +1018,7 @@ Resources:
   DeleteNoteFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: backend/notes/delete/
+      CodeUri: ../backend/notes/delete/
       Handler: deleteNote.handler
       Runtime: nodejs20.x
       Layers:
@@ -1170,7 +1170,7 @@ Resources:
   ConnectFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: backend/websocket/connect/
+      CodeUri: ../backend/websocket/connect/
       Handler: connect.handler
       Runtime: nodejs20.x
       Layers:
@@ -1201,7 +1201,7 @@ Resources:
   DisconnectFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: backend/websocket/disconnect/
+      CodeUri: ../backend/websocket/disconnect/
       Handler: disconnect.handler
       Runtime: nodejs20.x
       Layers:
@@ -1414,7 +1414,7 @@ Resources:
     Properties:
       Handler: extractMessages.handler
       Runtime: nodejs20.x
-      CodeUri: backend/websocket/extractMessages/
+      CodeUri: ../backend/websocket/extractMessages/
       Layers:
         - !Ref AwsSdkV3Layer
       Environment:
