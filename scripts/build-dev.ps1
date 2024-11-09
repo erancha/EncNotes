@@ -12,23 +12,25 @@ if ($LASTEXITCODE -eq 0) {
 
     $projectFolder = (Get-Location).Path + "/.."
 
-    Set-Location "${projectFolder}/backend/layers/jsonwebtoken/nodejs/"
-    npm install
-    Set-Location ..
-    Compress-Archive -Update -Path * -DestinationPath ../jsonwebtoken-layer.zip
+    Write-Host "Skipping awssdkv3, jsonwebtoken and ioredis !" -ForegroundColor Yellow -BackgroundColor DarkGreen
+
+    # Set-Location "${projectFolder}/backend/layers/awssdkv3/nodejs/"
+    # npm install
+    # Set-Location ..
+    # Compress-Archive -Update -Path * -DestinationPath ../awssdkv3-layer.zip
+
+    # Set-Location "${projectFolder}/backend/layers/jsonwebtoken/nodejs/"
+    # npm install
+    # Set-Location ..
+    # Compress-Archive -Update -Path * -DestinationPath ../jsonwebtoken-layer.zip
+
+    # Set-Location "${projectFolder}/backend/layers/ioredis/nodejs/"
+    # npm install
+    # Set-Location ..
+    # Compress-Archive -Update -Path * -DestinationPath ../ioredis-layer.zip
 
     Set-Location "${projectFolder}/backend/notes/layers/encryption/"
     Compress-Archive -Update -Path *.js -DestinationPath ../notes-encryption-layer.zip
-
-    Set-Location "${projectFolder}/backend/layers/awssdkv3/nodejs/"
-    npm install
-    Set-Location ..
-    Compress-Archive -Update -Path * -DestinationPath ../awssdkv3-layer.zip
-
-    Set-Location "${projectFolder}/backend/layers/ioredis/nodejs/"
-    npm install
-    Set-Location ..
-    Compress-Archive -Update -Path * -DestinationPath ../ioredis-layer.zip
 
     Set-Location "${projectFolder}/scripts/"
 
