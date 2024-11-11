@@ -57,6 +57,7 @@ AWS-based web application to manage encrypted notes. The application allows auth
 - AWS SAM (Serverless Application Model) is used for deployment
 - CloudFormation templates define the infrastructure as code
 - Single command deployment using `sam build` and `sam deploy`
+- The application is currently accessible online at https://d8z8oboi5znfz.cloudfront.net.
 
 ## 7. Scalability & Performance
 
@@ -72,7 +73,3 @@ AWS-based web application to manage encrypted notes. The application allows auth
 
 - Pay-per-use model with serverless components
 - Elasticache and VPC resources incur hourly costs
-
-## 10. Live deployment
-
-https://d8z8oboi5znfz.cloudfront.net
