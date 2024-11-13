@@ -151,7 +151,7 @@ const Authentication = ({ cognitoConfig, setErrorMessage, setUserDisplayName, si
           <span className='sr-only'>Sign Out</span>
         </button>
       ) : (
-        <div className='animate-fade-flash'>
+        <div>
           <div className='auth-method-selection'>
             <label>Sign In with your Google account</label>
           </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Authentication from './components/Authentication';
 import CrudOperations from './components/CrudOperations';
 import './App.css';
@@ -11,9 +11,11 @@ function App() {
   const [cognitoConfig, setCognitoConfig] = useState(null);
   const [userDisplayName, setUserDisplayName] = useState('');
   const [showOverview, setShowOverview] = useState(false);
+  const [isShowOverviewFlashing, setIsShowOverviewFlashing] = useState(false);
+  const [isSignInGoogleFlashing, setIsSignInGoogleFlashing] = useState(false);
 
   // Effect to fetch configuration and set restApiUrl and Cognito settings
-  useEffect(() => {
+  const initializeApp = useCallback(async () => {
     const fetchConfig = async () => {
       try {
         const response = await fetch(`/appConfig.json?v=${new Date().getTime()}`); // cache-busting technique
@@ -28,12 +30,62 @@ function App() {
       }
     };
 
-    const initialize = async () => {
-      await fetchConfig();
+    const startAnimations = () => {
+      // Start flashing the 'Sign in with Google' button after 2 seconds, for 5 seconds
+      setTimeout(() => {
+        setIsSignInGoogleFlashing(true);
+        const signInGoogleFlashInterval = setInterval(() => {
+          setIsSignInGoogleFlashing((prevSignInGoogleFlashing) => !prevSignInGoogleFlashing);
+        }, 750);
+
+        // Stop flashing the 'Sign in with Google' button after 10 seconds
+        setTimeout(() => {
+          setIsSignInGoogleFlashing(false);
+          clearInterval(signInGoogleFlashInterval);
+        }, 5000);
+      }, 2000);
+
+      // Start flashing the 'Show Overview' button after flashing the 'Sign in with Google' button, for 5 seconds
+      setTimeout(() => {
+        setIsShowOverviewFlashing(true);
+        const showOverviewFlashInterval = setInterval(() => {
+          setIsShowOverviewFlashing((prevShowOverviewFlashing) => !prevShowOverviewFlashing);
+        }, 750);
+
+        // Stop flashing the 'Show Overview' button after 10 seconds
+        setTimeout(() => {
+          setIsShowOverviewFlashing(false);
+          clearInterval(showOverviewFlashInterval);
+        }, 5000);
+      }, 7000);
+
+      // Continue flashing the 'Sign in with Google' button after flashing the 'Show Overview' button, for 5 additional seconds
+      setTimeout(() => {
+        setIsSignInGoogleFlashing(true);
+        const signInGoogleFlashInterval = setInterval(() => {
+          setIsSignInGoogleFlashing((prevSignInGoogleFlashing) => !prevSignInGoogleFlashing);
+        }, 1000);
+
+        // Stop flashing the 'Sign in with Google' button after 10 seconds
+        setTimeout(() => {
+          setIsSignInGoogleFlashing(false);
+          clearInterval(signInGoogleFlashInterval);
+        }, 8000);
+      }, 12000);
     };
 
-    initialize();
+    await fetchConfig();
+    startAnimations();
   }, []);
+
+  useEffect(() => {
+    initializeApp();
+
+    // Clean up intervals on component unmount
+    return () => {
+      // Any cleanup code
+    };
+  }, [initializeApp]);
 
   return (
     <div className='App'>
@@ -57,8 +109,10 @@ function App() {
           </div>
         ) : cognitoConfig ? (
           <>
-            <Authentication cognitoConfig={cognitoConfig} setUserDisplayName={setUserDisplayName} setErrorMessage={setErrorMessage} />
-            <div className='overview-toggle'>
+            <div className={isSignInGoogleFlashing ? 'flashing' : ''}>
+              <Authentication cognitoConfig={cognitoConfig} setUserDisplayName={setUserDisplayName} setErrorMessage={setErrorMessage} />
+            </div>
+            <div className={`overview-toggle ${isShowOverviewFlashing && !showOverview ? 'flashing' : ''}`}>
               <button onClick={() => setShowOverview(!showOverview)} className='text-button'>
                 {showOverview ? 'Hide Overview' : 'Show Overview'}
               </button>
