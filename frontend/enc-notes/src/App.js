@@ -36,7 +36,7 @@ function App() {
         setIsSignInGoogleFlashing(true);
         const signInGoogleFlashInterval = setInterval(() => {
           setIsSignInGoogleFlashing((prevSignInGoogleFlashing) => !prevSignInGoogleFlashing);
-        }, 750);
+        }, 1000);
 
         // Stop flashing the 'Sign in with Google' button after 10 seconds
         setTimeout(() => {
@@ -45,32 +45,32 @@ function App() {
         }, 5000);
       }, 2000);
 
-      // Start flashing the 'Show Overview' button after flashing the 'Sign in with Google' button, for 5 seconds
+      // Start flashing the 'Show Overview' button after flashing the 'Sign in with Google' button, for few seconds
       setTimeout(() => {
         setIsShowOverviewFlashing(true);
         const showOverviewFlashInterval = setInterval(() => {
           setIsShowOverviewFlashing((prevShowOverviewFlashing) => !prevShowOverviewFlashing);
-        }, 750);
+        }, 1250);
 
-        // Stop flashing the 'Show Overview' button after 10 seconds
+        // Stop flashing the 'Show Overview' button after few seconds
         setTimeout(() => {
           setIsShowOverviewFlashing(false);
           clearInterval(showOverviewFlashInterval);
         }, 5000);
       }, 7000);
 
-      // Continue flashing the 'Sign in with Google' button after flashing the 'Show Overview' button, for 5 additional seconds
+      // Continue flashing the 'Sign in with Google' button after flashing the 'Show Overview' button, for few more seconds
       setTimeout(() => {
         setIsSignInGoogleFlashing(true);
         const signInGoogleFlashInterval = setInterval(() => {
           setIsSignInGoogleFlashing((prevSignInGoogleFlashing) => !prevSignInGoogleFlashing);
-        }, 1000);
+        }, 750);
 
         // Stop flashing the 'Sign in with Google' button after 10 seconds
         setTimeout(() => {
           setIsSignInGoogleFlashing(false);
           clearInterval(signInGoogleFlashInterval);
-        }, 8000);
+        }, 5000);
       }, 12000);
     };
 
