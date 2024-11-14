@@ -327,11 +327,8 @@ async function testSQSConnectivity(sqsParams) {
 
 //=============================================================================================================
 async function testEncryptionLayer() {
-  if (!process.env.APP_AWS_REGION) {
-    console.log('testEncryptionLayer: Skipped (No process.env.APP_AWS_REGION provided)');
-    return false;
-  } else if (!process.env.USER_ID) {
-    console.log('testEncryptionLayer: Skipped (No process.env.USER_ID provided)');
+  if (!process.env.APP_AWS_REGION || !process.env.USER_ID) {
+    console.log('testEncryptionLayer: Skipped (No process.env.APP_AWS_REGION or no process.env.USER_ID provided)');
     return false;
   }
 

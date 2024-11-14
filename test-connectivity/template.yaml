@@ -16,9 +16,9 @@ Resources:
       Runtime: nodejs20.x
       CodeUri: src/
       Layers:
-        - 'arn:aws:lambda:eu-central-1:575491442067:layer:AwsSdkV3Layer:35'
-        - 'arn:aws:lambda:eu-central-1:575491442067:layer:IoredisLayer:35'
-        - 'arn:aws:lambda:eu-central-1:575491442067:layer:NotesEncryptionLayer:234'
+        - 'arn:aws:lambda:eu-central-1:575491442067:layer:AwsSdkV3Layer:36'
+        - 'arn:aws:lambda:eu-central-1:575491442067:layer:IoredisLayer:36'
+        - 'arn:aws:lambda:eu-central-1:575491442067:layer:NotesEncryptionLayer:239'
       Environment:
         Variables:
           APP_AWS_REGION: 'eu-central-1'

@@ -11,7 +11,7 @@ function prepareCorsHeaders(origin, allowedMethods = 'OPTIONS,GET') {
   } else if (ALLOWED_ORIGIN === "'*'") {
     headers['Access-Control-Allow-Origin'] = '*'; // Allow all origins
   } else {
-    console.warn(`CORS Warning: Origin ${origin} is not in the allowed origin: ${ALLOWED_ORIGIN}`);
+    console.warn(`CORS Warning: Origin '${origin}' is not in the allowed origin: ${ALLOWED_ORIGIN}`);
   }
 
   return headers;
