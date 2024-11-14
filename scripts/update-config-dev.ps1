@@ -12,3 +12,6 @@ $redirect_sign_out = "http://localhost:3000" # /logout
    -backend_build_time `
    -redirect_sign_in $redirect_sign_in `
    -redirect_sign_out $redirect_sign_out
+
+.\common-constants.ps1
+Copy-Item -Path $CONFIG_FILE_PATH -Destination $LAST_DEV_CONFIG_FILE_PATH            

@@ -48,6 +48,15 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl }) => {
     async (searchParams = prepareSearchParams(searchTerm, searchInTitle, searchInContent, caseSensitive, showArchived)) => {
       setIsAccessingServer(true);
       try {
+        // if there're no notes, and we're not during search, and we're in archive mode, switch automatically to adding a note:
+        const checkNotesCountAndSwitchToAddingNote = () => {
+          if (!searchParams.searchTerm && !showArchived) {
+            setShowSearchPane(false);
+            setSearchTerm('');
+            setIsAddingNote(true);
+          }
+        };
+
         const { tokens } = await fetchAuthSession();
         let response = await axios.get(`${restApiUrl}/list`, {
           headers: { Authorization: `Bearer ${tokens.idToken}` },
@@ -58,15 +67,10 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl }) => {
             .filter((note) => (showArchived ? note.archived : !note.archived))
             .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
           setNotes(sortedNotes);
+          if (sortedNotes.length === 0) checkNotesCountAndSwitchToAddingNote();
         } else {
           setNotes([]);
-
-          // if there're no notes, and we're not during search, and we're in archive mode, switch automatically to adding a note:
-          if (!searchParams.searchTerm && !showArchived) {
-            setShowSearchPane(false);
-            setSearchTerm('');
-            setIsAddingNote(true);
-          }
+          checkNotesCountAndSwitchToAddingNote();
         }
       } catch (error) {
         console.error('Error fetching notes:', error);
@@ -291,6 +295,7 @@ For more Markdown tips, check out a [Markdown Cheat Sheet](https://www.markdowng
               <span className='sr-only'>Add New Note</span>
             </button>
           )}
+          <span className='notes-count'>{notes && notes.length} notes</span>
           {notes.length > 0 && (
             <button onClick={toggleViewMode} className='icon-button' title={`Switch to ${viewMode === 'table' ? 'Preview' : 'Table'} View`}>
               {<ArrowRight size={10} />}

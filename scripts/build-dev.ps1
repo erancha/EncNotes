@@ -112,9 +112,7 @@ if ($LASTEXITCODE -eq 0) {
             }
             else {
                 Write-Output "`nDeployment completed successfully."
-
                 .\update-config-dev.ps1
-                Copy-Item -Path $CONFIG_FILE_PATH -Destination $LAST_DEV_CONFIG_FILE_PATH            
             }
         }
     }
