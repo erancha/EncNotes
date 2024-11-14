@@ -283,49 +283,50 @@ For more Markdown tips, check out a [Markdown Cheat Sheet](https://www.markdowng
 
   const renderHeaderButtons = () => (
     <div className='header-buttons'>
-      {!isAddingNote && (
-        <>
-          {!showArchived && (
-            <button
-              onClick={() => setIsAddingNote(true)}
-              className={`icon-button ${notes.length === 0 && !searchTerm && !showArchived ? 'flash' : ''}`}
-              title='Add New Note'
-              disabled={showArchived}>
-              <Plus size={20} />
-              <span className='sr-only'>Add New Note</span>
-            </button>
-          )}
-          <span className='notes-count'>{notes && notes.length} notes</span>
-          {notes.length > 0 && (
-            <button onClick={toggleViewMode} className='icon-button' title={`Switch to ${viewMode === 'table' ? 'Preview' : 'Table'} View`}>
-              {<ArrowRight size={10} />}
-              {viewMode === 'table' ? <Eye size={20} /> : <List size={20} />}
-              <span className='sr-only'>Switch View</span>
-            </button>
-          )}
+      <>
+        {!showArchived && (
           <button
-            onClick={() => setShowArchived(!showArchived)}
-            className={`icon-button ${showArchived ? 'active' : 'archive'}`}
-            title={`Switch to ${showArchived ? 'Active' : 'Archived'} Notes`}>
-            <ArrowRight size={10} />
-            {showArchived ? <RefreshCw size={20} /> : <Archive size={20} />}
-            <span className='sr-only'>{showArchived ? 'Show Active Notes' : 'Show Archived Notes'}</span>
+            onClick={() => setIsAddingNote(true)}
+            className={`icon-button ${notes.length === 0 && !searchTerm && !showArchived ? 'flash' : ''}`}
+            title='Add New Note'
+            disabled={showArchived}>
+            <Plus size={20} />
+            <span className='sr-only'>Add New Note</span>
           </button>
-          {(notes.length > 0 || searchTerm) && (
-            <button
-              onClick={toggleSearchPane}
-              className={`icon-button ${showSearchPane && 'search-open'} ${searchTerm && 'search-active'}`}
-              title='Toggle Search'>
-              <Search size={20} />
-              <span className='sr-only'>Toggle Search</span>
-            </button>
-          )}
-          <button onClick={toggleHelp} className='icon-button' title='Toggle Help'>
-            <HelpCircle size={20} />
-            <span className='sr-only'>Toggle Help</span>
+        )}
+        <span className={`notes-count${notes.length === 0 && !isAccessingServer ? ' no-notes' : ''}`}>{notes && notes.length} notes</span>
+        {notes.length > 0 && (
+          <button onClick={toggleViewMode} className='icon-button' title={`Switch to ${viewMode === 'table' ? 'Preview' : 'Table'} View`}>
+            {<ArrowRight size={10} />}
+            {viewMode === 'table' ? <Eye size={20} /> : <List size={20} />}
+            <span className='sr-only'>Switch View</span>
           </button>
-        </>
-      )}
+        )}
+        <button
+          onClick={() => {
+            setShowArchived(!showArchived);
+            setIsAddingNote(false);
+          }}
+          className={`icon-button ${showArchived ? 'active' : 'archive'}`}
+          title={`Switch to ${showArchived ? 'Active' : 'Archived'} Notes`}>
+          <ArrowRight size={10} />
+          {showArchived ? <RefreshCw size={20} /> : <Archive size={20} />}
+          <span className='sr-only'>{showArchived ? 'Show Active Notes' : 'Show Archived Notes'}</span>
+        </button>
+        {(notes.length > 0 || searchTerm) && (
+          <button
+            onClick={toggleSearchPane}
+            className={`icon-button ${showSearchPane && 'search-open'} ${searchTerm && 'search-active'}`}
+            title='Toggle Search'>
+            <Search size={20} />
+            <span className='sr-only'>Toggle Search</span>
+          </button>
+        )}
+        <button onClick={toggleHelp} className='icon-button' title='Toggle Help'>
+          <HelpCircle size={20} />
+          <span className='sr-only'>Toggle Help</span>
+        </button>
+      </>
     </div>
   );
 
@@ -353,10 +354,9 @@ For more Markdown tips, check out a [Markdown Cheat Sheet](https://www.markdowng
       <ToastContainer limit={1} />
       {isAccessingServer && !searchTerm && <LoadingSpinner />}
       <div className='CrudOperations'>
+        {renderHeaderButtons()}
         {!editingNote && (
           <>
-            {renderHeaderButtons()}
-
             {showSearchPane && (
               <div className='search-pane'>
                 <div className='search-input-wrapper'>
@@ -396,22 +396,24 @@ For more Markdown tips, check out a [Markdown Cheat Sheet](https://www.markdowng
                 <input type='text' value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder='Enter a new note title' />
                 <textarea value={newNote} onChange={(e) => setNewNote(e.target.value)} placeholder='Enter a new note content' rows={10} />
                 <div className='add-note-form-buttons'>
-                  <button
-                    onClick={() => {
-                      if (
-                        (newTitle.trim() === '' && newNote.trim() === '') ||
-                        window.confirm('You have unsaved changes. Are you sure you want to go back to the table?')
-                      ) {
-                        setIsAddingNote(false);
-                        setNewTitle('');
-                        setNewNote('');
-                      }
-                    }}
-                    className='icon-button cancel'
-                    title='Cancel'>
-                    <ArrowLeft size={20} />
-                    <span className='sr-only'>Cancel</span>
-                  </button>
+                  {notes.length > 0 && (
+                    <button
+                      onClick={() => {
+                        if (
+                          (newTitle.trim() === '' && newNote.trim() === '') ||
+                          window.confirm('You have unsaved changes. Are you sure you want to go back to the table?')
+                        ) {
+                          setIsAddingNote(false);
+                          setNewTitle('');
+                          setNewNote('');
+                        }
+                      }}
+                      className='icon-button cancel'
+                      title='Cancel'>
+                      <ArrowLeft size={20} />
+                      <span className='sr-only'>Cancel</span>
+                    </button>
+                  )}
                   {newTitle.trim() !== '' && (
                     <button onClick={addNote} className='icon-button flash save-button' title='Save Note'>
                       <Save size={20} />
@@ -468,7 +470,6 @@ For more Markdown tips, check out a [Markdown Cheat Sheet](https://www.markdowng
             ) : (
               <div className='preview-container'>{notes.map((note) => renderNotePreview(note, searchTerm, caseSensitive, actions, icons))}</div>
             )}
-            {notes.length === 0 && !isAccessingServer && <p className='no-notes-message'>{`No ${showArchived ? 'archived' : 'active'} notes!`}</p>}
           </>
         )}
       </div>
