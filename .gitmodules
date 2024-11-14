@@ -1,0 +1,3 @@
+[submodule "backend/notes/layers/encryption"]
+	path = backend/notes/layers/encryption
+	url = https://github.com/erancha/kms-deks-redis-dynamodb-based-encryption.git
