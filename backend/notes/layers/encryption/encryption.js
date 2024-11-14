@@ -98,7 +98,8 @@ async function getUserDataKey(userId) {
       const redisClient = new Redis(process.env.ELASTICACHE_REDIS_ADDRESS);
 
       // Get the plaintext DEK from Redis with key === userId
-      userDataKey = await redisClient.getBuffer(`keys:${userId}`);
+      const REDIS_KEY_DEK_OF_USER = `keys:${userId}`;
+      userDataKey = await redisClient.getBuffer(REDIS_KEY_DEK_OF_USER);
       if (!userDataKey) {
         // Get the encrypted DEK from DynamoDB users table, by userId
         const params = {
@@ -121,7 +122,7 @@ async function getUserDataKey(userId) {
           userDataKey = decryptResponse.Plaintext;
 
           // Write the plaintext DEK to Redis (with the userId)
-          await redisClient.set(`keys:${userId}`, Buffer.from(userDataKey));
+          await redisClient.set(REDIS_KEY_DEK_OF_USER, Buffer.from(userDataKey));
         } else {
           // Generate a new DEK (encrypted DEK + plaintext DEK) using KMS' GenerateDataKey API
           const generateDataKeyCommand = new GenerateDataKeyCommand({
@@ -135,7 +136,7 @@ async function getUserDataKey(userId) {
           userDataKey = Plaintext;
 
           // Write the plaintext DEK into Redis (with the userId)
-          await redisClient.set(`keys:${userId}`, Buffer.from(userDataKey));
+          await redisClient.set(REDIS_KEY_DEK_OF_USER, Buffer.from(userDataKey));
 
           // Write the encrypted DEK into the DynamoDB users table (with the userId)
           const putParams = {
@@ -147,6 +148,8 @@ async function getUserDataKey(userId) {
           };
           await dynamoDBClient.send(new PutItemCommand(putParams));
         }
+      } else {
+        // console.info(`Cache hit - plaintext DEK for '${REDIS_KEY_DEK_OF_USER}' successfully retrieved from Elasticache redis.`);
       }
     } else {
       // a distributed cache (elasticache) for user data keys (DEKs) was NOT enabled.
@@ -197,6 +200,7 @@ async function getUserDataKey(userId) {
     console.error({ error });
   }
 
+  // console.log({ userId, userDataKey });
   return userDataKey;
 }
 

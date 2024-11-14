@@ -29,9 +29,6 @@ if ($LASTEXITCODE -eq 0) {
     # Set-Location ..
     # Compress-Archive -Update -Path * -DestinationPath ../ioredis-layer.zip
 
-    Set-Location "${projectFolder}/backend/notes/layers/encryption/"
-    Compress-Archive -Update -Path *.js -DestinationPath ../notes-encryption-layer.zip
-
     Set-Location "${projectFolder}/scripts/"
 
     Write-Output "`n$(Get-Date -Format 'HH:mm:ss') sam build --template-file $TEMPLATE_FILE ..`n"

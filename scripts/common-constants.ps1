@@ -4,7 +4,7 @@ $isMainBranch = $currentBranch -eq 'main'
 if ($isMainBranch) {
     Set-Variable -Name 'STACK_NAME' -Value 'en' -Scope Global
 } else {
-    Set-Variable -Name 'STACK_NAME' -Value 'en-f12' -Scope Global
+    Set-Variable -Name 'STACK_NAME' -Value 'en-f13' -Scope Global
     Write-Host "Remember to add/remove NotesLambdaSG as an inbound rule to MyElasticacheRedisSG !" -ForegroundColor Yellow -BackgroundColor DarkRed
 }
 

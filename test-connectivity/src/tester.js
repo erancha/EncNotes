@@ -1,9 +1,10 @@
 const { KMSClient, GenerateDataKeyCommand } = require('@aws-sdk/client-kms');
-const { DynamoDBClient, QueryCommand } = require('@aws-sdk/client-dynamodb');
+const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+const { DynamoDBDocumentClient, QueryCommand } = require('@aws-sdk/lib-dynamodb');
 const Redis = require('ioredis');
-const { v4: uuidv4 } = require('uuid');
 const { ApiGatewayManagementApiClient, PostToConnectionCommand } = require('@aws-sdk/client-apigatewaymanagementapi');
 const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
+const { getUserDataKey, decrypt, encrypt } = require('/opt/encryption');
 
 const formatNumber = (number) => {
   return new Intl.NumberFormat('en-US').format(number); // 'en-US' can be changed to any locale you prefer
@@ -29,22 +30,23 @@ const formatNumber = (number) => {
 //     "test": false,
 //     "connectionIds": ["AUVnKcFPliACHaQ="],
 //     "repeat": 2
-//   }
+//   },
+//   "encryptionLayer": true
 // }
 exports.handler = async (event) => {
   try {
-    let connectivityTested = false;
-
     if (process.env.APP_AWS_REGION === '') {
       console.error('Connectivity Test: Skipped (No APP_AWS_REGION defined)');
       return false;
     }
 
-    if (event.dynamodb) connectivityTested = await testDynamoDBConnectivity();
-    if (event.kms) connectivityTested = await testKMSConnectivity();
-    if (event.redisParams?.test) connectivityTested = await testRedisConnectivity(event.redisParams);
-    if (event.websocketParams?.test) connectivityTested = await testWebSocketConnectivity(event.websocketParams);
-    if (event.sqsParams?.test) connectivityTested = await testSQSConnectivity(event.sqsParams);
+    let connectivityTested = true;
+    if (event.dynamoDBDocumentClient) connectivityTested &= await testDynamoDBConnectivity();
+    if (event.kms) connectivityTested &= await testKMSConnectivity();
+    if (event.redisParams?.test) connectivityTested &= await testRedisConnectivity(event.redisParams);
+    if (event.websocketParams?.test) connectivityTested &= await testWebSocketConnectivity(event.websocketParams);
+    if (event.sqsParams?.test) connectivityTested &= await testSQSConnectivity(event.sqsParams);
+    if (event.encryptionLayer) connectivityTested &= await testEncryptionLayer();
 
     console.log({ connectivityTested });
   } catch (error) {
@@ -56,21 +58,22 @@ exports.handler = async (event) => {
 async function testDynamoDBConnectivity() {
   try {
     console.log('testDynamoDBConnectivity');
-    const dynamoDBClient = new DynamoDBClient({ region: process.env.APP_AWS_REGION });
-    const result = await dynamoDBClient.send(
+    const dynamodbClient = new DynamoDBClient({ region: process.env.APP_AWS_REGION });
+    const dynamoDBDocumentClient = DynamoDBDocumentClient.from(dynamodbClient);
+    const userId = process.env.USER_ID;
+    const result = await dynamoDBDocumentClient.send(
       new QueryCommand({
-        TableName: process.env.TABLE_NAME,
+        TableName: process.env.NOTES_TABLE_NAME,
         IndexName: 'UserIdUpdatedIndex',
         KeyConditionExpression: 'userId = :userId',
         ExpressionAttributeValues: {
-          ':userId': { S: '5314d812-40e1-706a-065b-780abe3331fa' },
+          ':userId': userId,
         },
         Select: 'COUNT',
         ScanIndexForward: false,
-        Limit: 50,
       })
     );
-    console.log('DynamoDB Connectivity Test - Number of Items Found:', result.Count);
+    console.log(`DynamoDB Connectivity Test - Number of items found for user ${userId}: ${result.Count}`);
     return true;
   } catch (error) {
     console.error('DynamoDB Connectivity Test Failed:', error);
@@ -317,6 +320,51 @@ async function testSQSConnectivity(sqsParams) {
     return true;
   } catch (error) {
     console.error(`Error sending message: ${error}`);
+  }
+
+  return false;
+}
+
+//=============================================================================================================
+async function testEncryptionLayer() {
+  if (!process.env.APP_AWS_REGION) {
+    console.log('testEncryptionLayer: Skipped (No process.env.APP_AWS_REGION provided)');
+    return false;
+  } else if (!process.env.USER_ID) {
+    console.log('testEncryptionLayer: Skipped (No process.env.USER_ID provided)');
+    return false;
+  }
+
+  const userId = process.env.USER_ID;
+  console.log(`testEncryptionLayer: ${userId}.`);
+
+  const dynamodbClient = new DynamoDBClient({ region: process.env.APP_AWS_REGION });
+  const dynamoDBDocumentClient = DynamoDBDocumentClient.from(dynamodbClient);
+
+  try {
+    const userDataKey = await getUserDataKey(userId);
+
+    const result = await dynamoDBDocumentClient.send(
+      new QueryCommand({
+        TableName: process.env.NOTES_TABLE_NAME,
+        IndexName: 'UserIdUpdatedIndex',
+        KeyConditionExpression: 'userId = :userId',
+        ExpressionAttributeValues: { ':userId': userId },
+        Select: 'ALL_ATTRIBUTES',
+        ScanIndexForward: false,
+      })
+    );
+    let notes = await Promise.all(
+      result.Items.map(async (item) => ({
+        title: item.title,
+        content: await decrypt(userDataKey, item.content),
+      }))
+    );
+    console.log({ notes });
+
+    return true;
+  } catch (error) {
+    console.error(`Error executing DynamoDB command: ${error}`);
   }
 
   return false;
