@@ -1,15 +1,13 @@
-# Get the directory of the current script
-$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+# # Get the directory of the current script
+# $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-# Set relative paths based on the script's location
-$mainRepoPath = Join-Path $scriptDir "..\.."
-$submoduleName = "kms-deks-redis-dynamodb-based-encryption"
-$submoduleRepoUrl = "https://github.com/erancha/$submoduleName.git"
-$submodulePath = Join-Path (Join-Path $mainRepoPath "..") $submoduleName
-$layerCodePath = Join-Path $mainRepoPath "backend\notes\layers\encryption\encryption.js"
-$readmePath = Join-Path $submodulePath "README.md"
-
-# Write-Host $scriptDir "`n" $mainRepoPath "`n" $submoduleName "`n" $submoduleRepoUrl "`n" $submodulePath "`n" $layerCodePath "`n" $readmePath "`n" 
+# # Set relative paths based on the script's location
+# $mainRepoPath = Join-Path $scriptDir "..\.."
+# $submoduleName = "kms-deks-redis-dynamodb-based-encryption"
+# $submoduleRepoUrl = "https://github.com/erancha/$submoduleName.git"
+# $submodulePath = Join-Path (Join-Path $mainRepoPath "..") $submoduleName
+# $layerCodePath = Join-Path $mainRepoPath "backend\notes\layers\encryption\encryption.js"
+# $readmePath = Join-Path $submodulePath "README.md"
 
 # 1. Create a New Repository for the Submodule (Create the directory)
 # New-Item -ItemType Directory -Path $submodulePath -Force
@@ -43,14 +41,14 @@ $readmePath = Join-Path $submodulePath "README.md"
 # git push -u origin main
 
 # 6. Remove the Old Layer Code
-Remove-Item $layerCodePath -Force
-git rm $layerCodePath
-git commit -m "Removed original encryption.js file, now using submodule"
+# Remove-Item $layerCodePath -Force
+# git rm $layerCodePath
+# git commit -m "Removed original encryption.js file, now using submodule"
 
-# 7. Add the Submodule to the Main Repository
-Set-Location -Path $mainRepoPath
-git submodule add $submoduleRepoUrl "backend/notes/layers/encryption"
-git commit -m "Added a submodule to implement the lambda encryption layer"
+# # 7. Add the Submodule to the Main Repository
+# Set-Location -Path $mainRepoPath
+# git submodule add $submoduleRepoUrl "backend/notes/layers/encryption"
+# git commit -m "Added a submodule to implement the lambda encryption layer"
 
-Set-Location -Path $scriptDir
+# Set-Location -Path $scriptDir
 Write-Host "Submodule setup completed successfully."
