@@ -29,6 +29,7 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl }) => {
 
   // fetching notes :
   const timeoutIdRef = useRef(null);
+  const newTitleInputRef = useRef(null);
 
   function prepareSearchParams(searchTerm, searchInTitle, searchInContent, caseSensitive, showArchived) {
     let searchParams = { archived: showArchived };
@@ -286,7 +287,12 @@ For more Markdown tips, check out a [Markdown Cheat Sheet](https://www.markdowng
       <>
         {!showArchived && (
           <button
-            onClick={() => setIsAddingNote(true)}
+            onClick={() => {
+              setIsAddingNote(true);
+              setTimeout(() => {
+                if (newTitleInputRef.current) newTitleInputRef.current.focus();
+              }, 500);
+            }}
             className={`icon-button ${notes.length === 0 && !searchTerm && !showArchived ? 'flash' : ''}`}
             title='Add New Note'
             disabled={showArchived}>
@@ -393,7 +399,13 @@ For more Markdown tips, check out a [Markdown Cheat Sheet](https://www.markdowng
 
             {isAddingNote && (
               <div className='add-note-form'>
-                <input type='text' value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder='Enter a new note title' />
+                <input
+                  type='text'
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  placeholder='Enter a new note title'
+                  ref={newTitleInputRef}
+                />
                 <textarea value={newNote} onChange={(e) => setNewNote(e.target.value)} placeholder='Enter a new note content' rows={10} />
                 <div className='add-note-form-buttons'>
                   {notes.length > 0 && (
