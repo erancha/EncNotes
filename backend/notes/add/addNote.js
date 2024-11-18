@@ -52,7 +52,7 @@ exports.handler = async (event) => {
 
     const sqsClient = new SQSClient({ region: process.env.APP_AWS_REGION });
     const sqsParams = {
-      QueueUrl: process.env.QUEUE_URL,
+      QueueUrl: process.env.SQS_QUEUE_URL,
       MessageGroupId: 'Default', // Required for FIFO queues
     };
 

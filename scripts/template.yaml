@@ -953,7 +953,7 @@ Resources:
               - !GetAtt MyElasticacheRedisCluster.RedisEndpoint.Address
               - !Ref ExistingElasticacheRedisClusterAddress
             - ''
-          QUEUE_URL: !Ref MessagesToWebsocketsQueue
+          SQS_QUEUE_URL: !Ref MessagesToWebsocketsQueue
       Events:
         AddNoteApi:
           Type: Api
@@ -998,7 +998,7 @@ Resources:
               - !GetAtt MyElasticacheRedisCluster.RedisEndpoint.Address
               - !Ref ExistingElasticacheRedisClusterAddress
             - ''
-          QUEUE_URL: !Ref MessagesToWebsocketsQueue
+          SQS_QUEUE_URL: !Ref MessagesToWebsocketsQueue
       Events:
         UpdateNoteApi:
           Type: Api
@@ -1042,7 +1042,7 @@ Resources:
               - !GetAtt MyElasticacheRedisCluster.RedisEndpoint.Address
               - !Ref ExistingElasticacheRedisClusterAddress
             - ''
-          QUEUE_URL: !Ref MessagesToWebsocketsQueue
+          SQS_QUEUE_URL: !Ref MessagesToWebsocketsQueue
       Events:
         DeleteNoteApi:
           Type: Api

@@ -291,9 +291,9 @@ async function testWebSocketConnectivity(websocketParams) {
 
 //=============================================================================================================
 async function testSQSConnectivity(sqsParams) {
-  const queueUrl = process.env.QUEUE_URL;
+  const queueUrl = process.env.SQS_QUEUE_URL;
   if (!queueUrl) {
-    console.log('SQS Connectivity Test: Skipped (No process.env.QUEUE_URL provided)');
+    console.log('SQS Connectivity Test: Skipped (No process.env.SQS_QUEUE_URL provided)');
     return false;
   }
   console.log(`testSQSConnectivity: ${queueUrl}.`);
