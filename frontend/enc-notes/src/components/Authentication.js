@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Amplify } from 'aws-amplify';
-import {} from 'aws-amplify/auth';
 import { signInWithRedirect, signIn, signUp, fetchAuthSession, signOut } from 'aws-amplify/auth';
 import { UserCircle, LogIn, LogOut } from 'lucide-react';
-import { jwtDecode } from 'jwt-decode';
 
 const Authentication = ({ cognitoConfig, setErrorMessage, setUserDisplayName, signoutOnly }) => {
   const [usernameInput, setUsernameInput] = useState('');
@@ -18,7 +16,10 @@ const Authentication = ({ cognitoConfig, setErrorMessage, setUserDisplayName, si
   const checkUser = useCallback(async () => {
     try {
       const { tokens } = await fetchAuthSession();
-      if (tokens) setUserDisplayName(jwtDecode(tokens.idToken.toString()).name);
+      if (tokens) {
+        // console.log(JSON.stringify(tokens.idToken.payload, null, 3));
+        setUserDisplayName(tokens.idToken.payload.name);
+      }
     } catch (error) {
       if (error.name === 'UserUnAuthenticatedException' || error.name === 'AuthUserPoolException') {
         console.debug({ error });
@@ -41,16 +42,18 @@ const Authentication = ({ cognitoConfig, setErrorMessage, setUserDisplayName, si
               redirectSignIn: [cognitoConfig.redirectSignIn],
               redirectSignOut: [cognitoConfig.redirectSignOut],
               responseType: 'code',
-              clientId: cognitoConfig.userPoolWebClientId,
-              providers: ['Google'],
+              // clientId: cognitoConfig.userPoolWebClientId,
+              // providers: ['Google'],
             },
           },
           userPoolId: cognitoConfig.userPoolId,
           userPoolClientId: cognitoConfig.userPoolWebClientId,
-          signUpVerificationMethod: 'code',
+          // signUpVerificationMethod: 'code',
         },
       },
     };
+
+    // console.log(JSON.stringify(amplifyConfig /*, null, 3*/));
     Amplify.configure(amplifyConfig);
     await checkUser(); // Now check user state after configuration
   }, [cognitoConfig, checkUser]); // Include dependencies here
