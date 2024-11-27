@@ -19,7 +19,7 @@ const formatNumber = (number) => {
 //     "writersCount" : 5,
 //     "readersCount": 20,
 //     "deleteUnnamed": true,
-//     "deleteKeys": ["connections:23743842-4061-709b-44f8-4ef9a527509d"],
+//     "deleteKeys": ["!!!!!!:!!!!!!!"],
 //     "flushall": false
 //   },
 ////   "websocketParams": {
@@ -123,7 +123,11 @@ async function testRedisConnectivity(redisParams) {
       keys.sort();
       let deletedKeysCount = 0;
       for (const key of keys) {
-        if (key.includes('test:') || (redisParams.deleteUnnamed && !key.includes(':')) || redisParams.deleteKeys?.includes(key)) {
+        if (
+          key.includes('test:') ||
+          (redisParams.deleteUnnamed && !key.includes(':') && !key.includes('(')) ||
+          redisParams.deleteKeys?.includes(key)
+        ) {
           console.log(`Deleting key: ${key}`);
           deletedKeysCount++;
           await redisClient.del(key);
