@@ -50,13 +50,13 @@ local currentUserId = KEYS[1]
 local currentConnectionId = KEYS[2]
 
 -- Store the user ID for the connection ID
-redis.call('set', 'users:' .. currentConnectionId, currentUserId)
+redis.call('set', 'userId(' .. currentConnectionId .. ')', currentUserId)
 
 -- Add the connection ID to the user's connections set
-redis.call('sadd', 'connections:' .. currentUserId, currentConnectionId)
+redis.call('sadd', 'connections(' .. currentUserId .. ')', currentConnectionId)
 
 -- Retrieve and return all connection IDs for the user
-return redis.call('smembers', 'connections:' .. currentUserId)
+return redis.call('smembers', 'connections(' .. currentUserId .. ')')
 `;
 
   try {

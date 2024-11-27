@@ -181,7 +181,7 @@ async function simulateRedisLoad(redisClient, insertDurationMS, writersCount, re
       }
     } catch (error) {
       metrics.errors++;
-      console.error('Error inserting keys:', error);
+      console.error('Error inserting keys :', error);
     }
   };
 

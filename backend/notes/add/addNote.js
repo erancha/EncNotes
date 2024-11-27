@@ -48,7 +48,7 @@ exports.handler = async (event) => {
 
     // handle connected devices of the current user:
     const redisClient = new Redis(process.env.ELASTICACHE_REDIS_ADDRESS);
-    const connectionIds = await redisClient.smembers(`connections:${currentUserId}`);
+    const connectionIds = await redisClient.smembers(`connections(${currentUserId})`);
 
     const sqsClient = new SQSClient({ region: process.env.APP_AWS_REGION });
     const sqsParams = {

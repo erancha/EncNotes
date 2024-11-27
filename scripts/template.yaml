@@ -557,8 +557,8 @@ Resources:
   #     #     sudo amazon-linux-extras install redis6
   #     # (2) redis-cli -h en-elasticache-redis-cluster.hz2zez.0001.euc1.cache.amazonaws.com
   #     # (3) keys *
-  #     #     get "users:APq0hdx0liACFZw="
-  #     #     smembers "connections:23743842-4061-709b-44f8-4ef9a527509d"
+  #     #     get "userId(APq0hdx0liACFZw=)"
+  #     #     smembers "connections(23743842-4061-709b-44f8-4ef9a527509d)"
   #     #     flushall
   #     NetworkInterfaces:
   #       - AssociatePublicIpAddress: 'true'

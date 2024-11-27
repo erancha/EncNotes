@@ -7,23 +7,21 @@ exports.handler = async (event) => {
 
   try {
     // Retrieve the currentUserId associated with currentConnectionId
-    const currentUserId = await redisClient.get(`users:${currentConnectionId}`);
+    const currentUserId = await redisClient.get(`userId(${currentConnectionId})`);
     if (currentUserId) {
-      // -- Remove the connection ID from the user's connections set
-      // -- Remove the mapping from currentConnectionId to userId
-      // -- Return the updated set members
+      // Refer to the comments inside the lua script:
       const luaScript = `
         local currentUserId = KEYS[1]
         local currentConnectionId = KEYS[2]
         
         -- Remove the connection ID from the user's connections set
-        redis.call('srem', 'connections:' .. currentUserId, currentConnectionId)
+        redis.call('srem', 'connections(' .. currentUserId .. ')', currentConnectionId)
         
         -- Remove the mapping from currentConnectionId to userId
-        redis.call('del', 'users:' .. currentConnectionId)
+        redis.call('del', 'userId(' .. currentConnectionId .. ')')
         
         -- Return the updated set members
-        return redis.call('smembers', 'connections:' .. currentUserId)
+        return redis.call('smembers', 'connections(' .. currentUserId .. ')')
         `;
       const updatedConnectionIds = await redisClient.eval(luaScript, 2, currentUserId, currentConnectionId);
     } else {
