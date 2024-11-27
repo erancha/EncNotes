@@ -135,12 +135,12 @@ async function testRedisConnectivity(redisParams) {
           const type = await redisClient.type(key);
           if (type === 'string') {
             const value = await redisClient.get(key);
-            console.log(`Key === ${key} , Value === ${value}`);
+            console.log(`${key}  ==>  ${value}`);
           } else if (type === 'set') {
             const members = await redisClient.smembers(key);
-            console.log(`Key === ${key} , Members === ${JSON.stringify(members)}`);
+            console.log(`${key}  ==>  ${JSON.stringify(members)}`);
           } else {
-            console.log(`Key === ${key} , Type === ${type} (not a string or set)`);
+            console.log(`The value of '${key}' is '${type}' ! (not a string or set)`);
           }
         }
       }
