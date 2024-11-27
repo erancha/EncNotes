@@ -19,7 +19,8 @@ const formatNumber = (number) => {
 //     "writersCount" : 5,
 //     "readersCount": 20,
 //     "deleteUnnamed": true,
-//     "deleteKeys": ["connections:23743842-4061-709b-44f8-4ef9a527509d"]
+//     "deleteKeys": ["connections:23743842-4061-709b-44f8-4ef9a527509d"],
+//     "flushall": false
 //   },
 ////   "websocketParams": {
 ////     "test": false,
@@ -31,7 +32,7 @@ const formatNumber = (number) => {
 //     "connectionIds": ["AUVnKcFPliACHaQ="],
 //     "repeat": 2
 //   },
-//   "encryptionLayer": true
+//   "encryptionLayer": false
 // }
 exports.handler = async (event) => {
   try {
@@ -115,31 +116,33 @@ async function testRedisConnectivity(redisParams) {
     if (redisParams.insertDurationSeconds > 0)
       await simulateRedisLoad(redisClient, redisParams.insertDurationSeconds * 1000, redisParams.writersCount, redisParams.readersCount);
 
-    const keys = await redisClient.keys('*'); // Get all keys from the Redis database
+    const keys = await redisClient.keys('*');
     const dbsize = await redisClient.dbsize();
     console.log(`Retrieved ${formatNumber(keys.length)} keys${dbsize !== keys.length ? ` (!== dbsize${dbSize})` : ''}.`);
     if (keys.length > 0) {
       keys.sort();
       let deletedKeysCount = 0;
       for (const key of keys) {
-        if (key.includes('test:') || (!key.includes(':') && redisParams.deleteUnnamed) || redisParams.deleteKeys?.includes(key)) {
+        if (key.includes('test:') || (redisParams.deleteUnnamed && !key.includes(':')) || redisParams.deleteKeys?.includes(key)) {
+          console.log(`Deleting key: ${key}`);
           deletedKeysCount++;
           await redisClient.del(key);
         } else {
-          const type = await redisClient.type(key); // Get the type of the key
+          const type = await redisClient.type(key);
           if (type === 'string') {
-            const value = await redisClient.get(key); // Fetch the value for string keys
-            console.log(`Key: ${key}, Value: ${value}`);
+            const value = await redisClient.get(key);
+            console.log(`Key === ${key} , Value === ${value}`);
           } else if (type === 'set') {
-            const members = await redisClient.smembers(key); // Get all members of the set
-            console.log(`Key: ${key}, Members: ${JSON.stringify(members)}`);
+            const members = await redisClient.smembers(key);
+            console.log(`Key === ${key} , Members === ${JSON.stringify(members)}`);
           } else {
-            console.log(`Key: ${key}, Type: ${type} (not a string or set)`);
+            console.log(`Key === ${key} , Type === ${type} (not a string or set)`);
           }
         }
       }
       console.log(`Deleted ${formatNumber(deletedKeysCount)} keys.`);
     }
+    if (redisParams.flushall) await redisClient.flushall();
 
     await redisClient.quit();
     return true;
