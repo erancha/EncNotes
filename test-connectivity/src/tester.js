@@ -118,7 +118,8 @@ async function testRedisConnectivity(redisParams) {
 
     const keys = await redisClient.keys('*');
     const dbsize = await redisClient.dbsize();
-    console.log(`Retrieved ${formatNumber(keys.length)} keys${dbsize !== keys.length ? ` (!== dbsize${dbSize})` : ''}.`);
+    console.log(`Retrieved ${formatNumber(keys.length)} keys${dbsize !== keys.length ? ` (!== dbsize${dbsize})` : ''}.`);
+
     if (keys.length > 0) {
       keys.sort();
       let deletedKeysCount = 0;
@@ -139,13 +140,19 @@ async function testRedisConnectivity(redisParams) {
           } else if (type === 'set') {
             const members = await redisClient.smembers(key);
             console.log(`${key}  ==>  ${JSON.stringify(members)}`);
+          } else if (type === 'list') {
+            const length = await redisClient.llen(key);
+            const firstItem = await redisClient.lindex(key, 0);
+            const lastItem = await redisClient.lindex(key, length - 1);
+            console.log(`${key}  ==>  ${length} items, first .. last items: ${firstItem} .. ${lastItem}`);
           } else {
-            console.log(`The value of '${key}' is '${type}' ! (not a string or set)`);
+            console.log(`The value of '${key}' is '${type}' ! (not a string, set, or list)`);
           }
         }
       }
       console.log(`Deleted ${formatNumber(deletedKeysCount)} keys.`);
     }
+
     if (redisParams.flushall) await redisClient.flushall();
 
     await redisClient.quit();
