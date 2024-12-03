@@ -291,9 +291,6 @@ Resources:
       CodeUri: ../backend/notes/stream/
       Layers:
         - !Ref AwsSdkV3Layer
-      # Environment:
-      #   Variables:
-      #     NOTES_TABLE_NAME: !If [CreateNotesTable, !Ref NotesTable, !Ref ExistingNotesTableName]
       VpcConfig:
         SubnetIds:
           - !If [CreatePrivateSubnet, !Ref MyPrivateSubnet, !Ref ExistingPrivateSubnetId]
