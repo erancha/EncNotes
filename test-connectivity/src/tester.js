@@ -19,7 +19,7 @@ const formatNumber = (number) => {
 //     "writersCount" : 5,
 //     "readersCount": 20,
 //     "deleteUnnamed": true,
-//     "deleteKeys": ["!!!!!!:!!!!!!!"],
+//     "deleteKeys": ["^cht.*:messages\\(global\\)$", "^cht-f1.*"],
 //     "flushall": false
 //   },
 ////   "websocketParams": {
@@ -113,8 +113,9 @@ async function testRedisConnectivity(redisParams) {
     console.log(`testRedisConnectivity: ${redisAddress}`);
     const redisClient = new Redis(redisAddress);
 
-    if (redisParams.insertDurationSeconds > 0)
+    if (redisParams.insertDurationSeconds > 0) {
       await simulateRedisLoad(redisClient, redisParams.insertDurationSeconds * 1000, redisParams.writersCount, redisParams.readersCount);
+    }
 
     const keys = await redisClient.keys('*');
     const dbsize = await redisClient.dbsize();
@@ -123,11 +124,14 @@ async function testRedisConnectivity(redisParams) {
     if (keys.length > 0) {
       keys.sort();
       let deletedKeysCount = 0;
+      const deletePatterns = redisParams.deleteKeys?.map((pattern) => new RegExp(pattern)) || [];
+
       for (const key of keys) {
         if (
           key.includes('test:') ||
           (redisParams.deleteUnnamed && !key.includes(':') && !key.includes('(')) ||
-          redisParams.deleteKeys?.includes(key)
+          redisParams.deleteKeys?.some((pattern) => pattern === key) || // Check for exact matches
+          deletePatterns.some((pattern) => pattern.test(key)) // Check for regex matches
         ) {
           console.log(`Deleting key: ${key}`);
           deletedKeysCount++;
