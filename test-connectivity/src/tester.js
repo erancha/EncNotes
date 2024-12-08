@@ -1,6 +1,6 @@
-const { KMSClient, GenerateDataKeyCommand } = require('@aws-sdk/client-kms');
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
-const { DynamoDBDocumentClient, QueryCommand } = require('@aws-sdk/lib-dynamodb');
+const { DynamoDBDocumentClient, QueryCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
+const { KMSClient, GenerateDataKeyCommand } = require('@aws-sdk/client-kms');
 const Redis = require('ioredis');
 const { ApiGatewayManagementApiClient, PostToConnectionCommand } = require('@aws-sdk/client-apigatewaymanagementapi');
 const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
@@ -11,7 +11,7 @@ const formatNumber = (number) => {
 };
 
 // {
-//   "dynamodb": false,
+//   "dynamodb": "",
 //   "kms": false,
 //   "redisParams": {
 //     "test": true,
@@ -42,7 +42,8 @@ exports.handler = async (event) => {
     }
 
     let connectivityTested = true;
-    if (event.dynamoDBDocumentClient) connectivityTested &= await testDynamoDBConnectivity();
+    if (event.dynamodb)
+      connectivityTested &= event.dynamodb === 'notes' ? await testDynamoDBConnectivityNotesTable() : await testDynamoDBConnectivityMessagesTable();
     if (event.kms) connectivityTested &= await testKMSConnectivity();
     if (event.redisParams?.test) connectivityTested &= await testRedisConnectivity(event.redisParams);
     if (event.websocketParams?.test) connectivityTested &= await testWebSocketConnectivity(event.websocketParams);
@@ -56,11 +57,14 @@ exports.handler = async (event) => {
 };
 
 //=============================================================================================================
-async function testDynamoDBConnectivity() {
+async function testDynamoDBConnectivityNotesTable() {
   try {
-    console.log('testDynamoDBConnectivity');
-    const dynamodbClient = new DynamoDBClient({ region: process.env.APP_AWS_REGION });
-    const dynamoDBDocumentClient = DynamoDBDocumentClient.from(dynamodbClient);
+    if (!process.env.APP_AWS_REGION) {
+      console.log('testDynamoDBConnectivityNotesTable: Skipped (No process.env.APP_AWS_REGION)');
+      return false;
+    }
+    console.log('testDynamoDBConnectivityNotesTable');
+    const dynamoDBDocumentClient = DynamoDBDocumentClient.from(new DynamoDBClient({ region: process.env.APP_AWS_REGION }));
     const userId = process.env.USER_ID;
     const result = await dynamoDBDocumentClient.send(
       new QueryCommand({
@@ -75,6 +79,62 @@ async function testDynamoDBConnectivity() {
       })
     );
     console.log(`DynamoDB Connectivity Test - Number of items found for user ${userId}: ${result.Count}`);
+    return true;
+  } catch (error) {
+    console.error('DynamoDB Connectivity Test Failed:', error);
+    return false;
+  }
+}
+//=============================================================================================================
+async function testDynamoDBConnectivityMessagesTable() {
+  try {
+    if (!process.env.APP_AWS_REGION) {
+      console.log('testDynamoDBConnectivityMessagesTable: Skipped (No process.env.APP_AWS_REGION)');
+      return false;
+    }
+    console.log('testDynamoDBConnectivityMessagesTable');
+    const dynamoDBDocumentClient = DynamoDBDocumentClient.from(new DynamoDBClient({ region: process.env.APP_AWS_REGION }));
+
+    const chatId = 'global';
+
+    // Step 1: Query messages for the given chatId
+    const result = await dynamoDBDocumentClient.send(
+      new QueryCommand({
+        TableName: process.env.MESSAGES_TABLE_NAME,
+        IndexName: 'ChatIdUpdatedIndex',
+        KeyConditionExpression: 'chatId = :chatId',
+        ExpressionAttributeValues: {
+          ':chatId': chatId,
+        },
+      })
+    );
+
+    console.log(`DynamoDB Connectivity Test - Number of items found for chatId ${chatId}: ${result.Count}`);
+
+    // Step 2: Process each record
+    for (const item of result.Items) {
+      if (item.content && item.content.startsWith(' : ')) {
+        const newContent = item.content.replace(' : ', '');
+        console.log({ newContent });
+
+        // Step 3: Update the record with the new content
+        await dynamoDBDocumentClient.send(
+          new UpdateCommand({
+            TableName: process.env.MESSAGES_TABLE_NAME,
+            Key: { id: item.id },
+            UpdateExpression: 'set #content = :newContent',
+            ExpressionAttributeNames: {
+              '#content': 'content',
+            },
+            ExpressionAttributeValues: {
+              ':newContent': newContent,
+            },
+          })
+        );
+        console.log(`Updated content for item with id ${item.id}`);
+      }
+    }
+
     return true;
   } catch (error) {
     console.error('DynamoDB Connectivity Test Failed:', error);
@@ -353,8 +413,7 @@ async function testEncryptionLayer() {
   const userId = process.env.USER_ID;
   console.log(`testEncryptionLayer: ${userId}.`);
 
-  const dynamodbClient = new DynamoDBClient({ region: process.env.APP_AWS_REGION });
-  const dynamoDBDocumentClient = DynamoDBDocumentClient.from(dynamodbClient);
+  const dynamoDBDocumentClient = DynamoDBDocumentClient.from(new DynamoDBClient({ region: process.env.APP_AWS_REGION }));
 
   try {
     const userDataKey = await getUserDataKey(userId);

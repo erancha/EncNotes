@@ -23,6 +23,7 @@ Resources:
         Variables:
           APP_AWS_REGION: 'eu-central-1'
           NOTES_TABLE_NAME: 'ena-notes'
+          MESSAGES_TABLE_NAME: 'cht-messages'
           KMS_KEY_ALIAS: 'd0efc261-b71d-4f5c-9686-9876cc664243'
           ELASTICACHE_REDIS_ADDRESS: 'en-elasticache-redis-cluster.hz2zez.0001.euc1.cache.amazonaws.com'
           SQS_QUEUE_URL: 'https://sqs.eu-central-1.amazonaws.com/575491442067/en-messagesToWebsocketsQueue.fifo'
@@ -32,4 +33,66 @@ Resources:
           - 'subnet-00a1db5158e0a7992' # en-PrivateSubnet
         SecurityGroupIds:
           - 'sg-01dd76e700f8dc519' # en-NotesLambdaSG
+      # Role: !GetAtt TesterLambdaRole.Arn
       Role: 'arn:aws:iam::575491442067:role/en-NotesLambdaRole-VmuomzbqvMHk'
+
+  # TesterLambdaRole:
+  #   Type: AWS::IAM::Role
+  #   Properties:
+  #     AssumeRolePolicyDocument:
+  #       Version: '2012-10-17'
+  #       Statement:
+  #         - Effect: Allow
+  #           Principal:
+  #             Service: lambda.amazonaws.com
+  #           Action: sts:AssumeRole
+  #     ManagedPolicyArns:
+  #       - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+  #     Policies:
+  #       - PolicyName: DynamoDBAccess
+  #         PolicyDocument:
+  #           Version: '2012-10-17'
+  #           Statement:
+  #             - Effect: Allow
+  #               Action:
+  #                 - dynamodb:Query
+  #                 - dynamodb:Scan
+  #                 - dynamodb:GetItem
+  #                 - dynamodb:PutItem
+  #                 - dynamodb:UpdateItem
+  #                 - dynamodb:DeleteItem
+  #               Resource:
+  #                 - 'arn:aws:dynamodb:eu-central-1:575491442067:table/ena-notes'
+  #                 - 'arn:aws:dynamodb:eu-central-1:575491442067:table/ena-notes/index/UserIdUpdatedIndex'
+  #                 - 'arn:aws:dynamodb:eu-central-1:575491442067:table/cht-messages'
+  #                 - 'arn:aws:dynamodb:eu-central-1:575491442067:table/cht-messages/index/ChatIdUpdatedIndex'
+  #       # - PolicyName: KMSAccess
+  #       # PolicyDocument:
+  #       #   Version: '2012-10-17'
+  #       #   Statement:
+  #       #     - Effect: Allow
+  #       #       Action:
+  #       #         - kms:Encrypt
+  #       #         - kms:Decrypt
+  #       #         - kms:GenerateDataKey
+  #       #       Resource: !If
+  #       #         - CreateNotesEncryptionKey
+  #       #         - !GetAtt NotesEncryptionKey.Arn
+  #       #         - !Sub 'arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/${ExistingNotesEncryptionKeyId}'
+  #       - PolicyName: ElastiCacheAccess
+  #         PolicyDocument:
+  #           Version: '2012-10-17'
+  #           Statement:
+  #             - Effect: Allow
+  #               Action:
+  #                 - 'elasticache:DescribeCacheClusters'
+  #                 - 'elasticache:DescribeReplicationGroups'
+  #               Resource: '*'
+  #       # - PolicyName: SQSSendMessagePolicy
+  #       #   PolicyDocument:
+  #       #     Version: '2012-10-17'
+  #       #     Statement:
+  #       #       - Effect: Allow
+  #       #         Action:
+  #       #           - sqs:SendMessage
+  #       #         Resource: !GetAtt MessagesToWebsocketsQueue.Arn
