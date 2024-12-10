@@ -2,7 +2,8 @@
 
 ## 1. Overview
 
-AWS-based web application to manage encrypted notes. The application allows authenticated users to add, edit, delete and list notes through a web-based interface, isolated with a different encryption key per user.
+EncNotes is a serverless web application built with AWS, React, and WebSockets. The application allows authenticated users to add, edit, delete and list notes through a web-based interface, isolated with a different encryption key per user.  
+The application is available online at https://d8z8oboi5znfz.cloudfront.net.
 
 ## 2. Architecture Components
 
@@ -57,7 +58,7 @@ AWS-based web application to manage encrypted notes. The application allows auth
 - AWS SAM (Serverless Application Model) is used for deployment
 - CloudFormation templates define the infrastructure as code
 - Single command deployment using `sam build` and `sam deploy`
-- The application is currently accessible online at https://d8z8oboi5znfz.cloudfront.net.
+- The application is available online at https://d8z8oboi5znfz.cloudfront.net.
 
 ## 7. Scalability & Performance
 
