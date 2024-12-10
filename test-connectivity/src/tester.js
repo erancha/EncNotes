@@ -209,6 +209,13 @@ async function testRedisConnectivity(redisParams) {
             const firstItem = await redisClient.lindex(key, 0);
             const lastItem = await redisClient.lindex(key, length - 1);
             console.log(`${key}  ==>  ${length} items, first .. last items: ${firstItem} .. ${lastItem}`);
+            // if (key.startsWith('cht-f2:')) {
+            //   await updateCache('cht-f2', redisClient);
+            //   const length = await redisClient.llen(key);
+            //   const firstItem = await redisClient.lindex(key, 0);
+            //   const lastItem = await redisClient.lindex(key, length - 1);
+            //   console.log(`${key}  ==>  ${length} items, first .. last items: ${firstItem} .. ${lastItem}`);
+            // }
           } else {
             console.log(`The value of '${key}' is '${type}' ! (not a string, set, or list)`);
           }
@@ -225,6 +232,44 @@ async function testRedisConnectivity(redisParams) {
     console.error('Redis Connectivity Test Failed:', error);
     return false;
   }
+}
+
+async function updateCache(STACK_NAME, redisClient) {
+  const luaScript = `
+  local STACK_NAME = ARGV[1]
+  local chatId = ARGV[2]
+  local newItem = ARGV[3]
+  local maxItems = tonumber(ARGV[4])
+  
+  local chatMessagesKey = STACK_NAME .. ":messages(" .. chatId .. ")"
+  
+  -- Check if the cache exists (otherwise the new item will not be inserted, and previous messages will be loaded when the first subsequent client will authenticate).
+  if redis.call('EXISTS', chatMessagesKey) > 0 then
+    -- Insert the new item at the beginning of the list
+    redis.call('LPUSH', chatMessagesKey, newItem)
+  
+    -- Remove the last item if the current length (including the new item) exceeds the maxItems limit
+    local length = redis.call('LLEN', chatMessagesKey)
+    if length > maxItems then
+        redis.call('RPOP', chatMessagesKey)
+    end
+  end
+  `;
+
+  await redisClient.eval(
+    luaScript,
+    0,
+    STACK_NAME,
+    'global',
+    JSON.stringify({
+      id: 'newItem.id',
+      timestamp: new Date('2024-12-10T16:00:44.194Z').getTime(),
+      content: 'newItem.content',
+      sender: 'newItem.sender',
+      viewed: true,
+    }),
+    100 // max items
+  );
 }
 
 async function simulateRedisLoad(redisClient, insertDurationMS, writersCount, readersCount) {

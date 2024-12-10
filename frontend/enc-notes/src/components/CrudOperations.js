@@ -30,6 +30,7 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl }) => {
   // fetching notes :
   const timeoutIdRef = useRef(null);
   const newTitleInputRef = useRef(null);
+  const searchTermInputRef = useRef(null);
 
   function prepareSearchParams(searchTerm, searchInTitle, searchInContent, caseSensitive, showArchived) {
     let searchParams = { archived: showArchived };
@@ -246,6 +247,7 @@ const CrudOperations = ({ restApiUrl, webSocketApiUrl }) => {
 
   const toggleSearchPane = () => {
     setShowSearchPane(!showSearchPane);
+    if (!showSearchPane) setTimeout(() => searchTermInputRef.current.focus(), 500);
   };
 
   const handleSearchChange = (e) => {
@@ -366,7 +368,14 @@ For more Markdown tips, check out a [Markdown Cheat Sheet](https://www.markdowng
             {showSearchPane && (
               <div className='search-pane'>
                 <div className='search-input-wrapper'>
-                  <input type='text' value={searchTerm} onChange={handleSearchChange} placeholder='Enter search term' className='search-input' />
+                  <input
+                    type='text'
+                    value={searchTerm}
+                    onChange={handleSearchChange}
+                    placeholder='Enter search term'
+                    className='search-input'
+                    ref={searchTermInputRef}
+                  />
                   {searchTerm && (
                     <button onClick={clearSearch} className='clear-search' title='Clear Search'>
                       <X size={16} />

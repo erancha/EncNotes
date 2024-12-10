@@ -658,7 +658,6 @@ td:nth-child(4) .icon-button {
   padding: 10px;
   background-color: #f0f0f0;
   border-radius: 4px;
-  animation: borderAnimation 1s forwards 2;
 }
 
 .search-pane input[type='text'] {
@@ -672,30 +671,6 @@ td:nth-child(4) .icon-button {
   display: flex;
   gap: 20px;
   position: relative;
-}
-
-@keyframes borderAnimation {
-  0% {
-    border: solid 1px transparent; /* Start with transparent border */
-    box-shadow: 0 0 0 0 transparent; /* No shadow */
-  }
-  20% {
-    box-shadow: 0 -2px 0 0 blue; /* Top border appears */
-  }
-  50% {
-    box-shadow: 2px 0 0 0 blue; /* Right border */
-  }
-  70% {
-    box-shadow: 0 2px 0 0 blue; /* Bottom border */
-  }
-  99% {
-    box-shadow: -2px 0 0 0 blue; /* Left border */
-    border: solid 1px blue; /* End with a solid 1px border */
-  }
-  100% {
-    box-shadow: 0 0 0 0 transparent; /* No shadow */
-    border: solid 2px blue; /* End with a solid 1px border */
-  }
 }
 
 .search-options label {
