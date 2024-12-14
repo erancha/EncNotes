@@ -1,10 +1,11 @@
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
-const { DynamoDBDocumentClient, QueryCommand, UpdateCommand } = require('@aws-sdk/lib-dynamodb');
+const { DynamoDBDocumentClient, QueryCommand, PutCommand } = require('@aws-sdk/lib-dynamodb');
 const { KMSClient, GenerateDataKeyCommand } = require('@aws-sdk/client-kms');
 const Redis = require('ioredis');
 const { ApiGatewayManagementApiClient, PostToConnectionCommand } = require('@aws-sdk/client-apigatewaymanagementapi');
 const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
 const { getUserDataKey, decrypt, encrypt } = require('/opt/encryption');
+const { v4: uuidv4 } = require('uuid');
 
 const formatNumber = (number) => {
   return new Intl.NumberFormat('en-US').format(number); // 'en-US' can be changed to any locale you prefer
@@ -111,28 +112,30 @@ async function testDynamoDBConnectivityMessagesTable() {
 
     console.log(`DynamoDB Connectivity Test - Number of items found for chatId ${chatId}: ${result.Count}`);
 
-    // Step 2: Process each record
+    // Step 2: Collect unique messages that start and end with '*'
+    const contentSet = new Set();
     for (const item of result.Items) {
-      if (item.content && item.content.startsWith(' : ')) {
-        const newContent = item.content.replace(' : ', '');
-        console.log({ newContent });
-
-        // Step 3: Update the record with the new content
-        await dynamoDBDocumentClient.send(
-          new UpdateCommand({
-            TableName: process.env.MESSAGES_TABLE_NAME,
-            Key: { id: item.id },
-            UpdateExpression: 'set #content = :newContent',
-            ExpressionAttributeNames: {
-              '#content': 'content',
-            },
-            ExpressionAttributeValues: {
-              ':newContent': newContent,
-            },
-          })
-        );
-        console.log(`Updated content for item with id ${item.id}`);
+      if (item.content && item.content.startsWith('*') && item.content.endsWith('*')) {
+        contentSet.add(item.content);
       }
+    }
+
+    // Insert unique messages back into the table with a new UUID id
+    for (const content of contentSet) {
+      const newItemId = uuidv4(); // Generate a new UUID
+      await dynamoDBDocumentClient.send(
+        new PutCommand({
+          TableName: process.env.MESSAGES_TABLE_NAME,
+          Item: {
+            id: newItemId,
+            chatId: chatId,
+            content: content,
+            sender: 'tester',
+            updatedAt: new Date().toISOString(),
+          },
+        })
+      );
+      console.log(`Inserted new item with content "${content}" and id ${newItemId}`);
     }
 
     return true;

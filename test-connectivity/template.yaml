@@ -33,8 +33,8 @@ Resources:
           - 'subnet-00a1db5158e0a7992' # en-PrivateSubnet
         SecurityGroupIds:
           - 'sg-01dd76e700f8dc519' # en-NotesLambdaSG
-      # Role: !GetAtt TesterLambdaRole.Arn
       Role: 'arn:aws:iam::575491442067:role/en-NotesLambdaRole-VmuomzbqvMHk'
+      # Role: !GetAtt TesterLambdaRole.Arn
 
   # TesterLambdaRole:
   #   Type: AWS::IAM::Role
